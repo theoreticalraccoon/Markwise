@@ -51,23 +51,52 @@ export async function ensureSubject(code, name = null) {
 }
 
 /**
- * Upsert a paper row. Returns { paper, unchanged }. Unchanged is true when the
- * same file (by sha256) is already ingested, letting the caller skip the
- * expensive parse-and-embed entirely.
+ * `.eq(col, null)` does not mean "is null" in PostgREST: it becomes
+ * `col=eq.null`, which matches nothing. Every lookup on a column that can be
+ * empty (a syllabus has no session, a paper may have no year) must go through
+ * `.is()` instead. The old lookup used `.eq` for all of them, so it never found
+ * an existing row, and every re-ingest inserted a duplicate paper.
  */
-export async function upsertPaper(meta, { title, sha256, pages, sourceUrl = null }) {
-  const { data: existing } = await db
+function matchOrNull(query, column, value) {
+  return value === null || value === undefined || value === "" ? query.is(column, null) : query.eq(column, value);
+}
+
+/** A paper is identified by subject, kind, year, series and its paper reference. */
+export async function findPaper(meta) {
+  let q = db
     .from("papers")
     .select("id,sha256")
     .eq("subject_code", meta.subjectCode)
     .eq("kind", meta.kind)
-    .eq("year", meta.year)
-    .eq("session", meta.session)
-    .eq("paper_no", meta.paperNo)
-    .eq("variant", meta.variant)
-    .maybeSingle();
+    .eq("paper_ref", meta.paperRef ?? "");
+  q = matchOrNull(q, "year", meta.year);
+  q = matchOrNull(q, "session", meta.session);
+  const { data, error } = await q.limit(1);
+  if (error) throw new Error(`Paper lookup failed: ${error.message}`);
+  return data?.[0] ?? null;
+}
 
-  if (existing && existing.sha256 === sha256) {
+async function chunkCount(paperId) {
+  const { count, error } = await db
+    .from("chunks")
+    .select("id", { count: "exact", head: true })
+    .eq("paper_id", paperId);
+  if (error) throw new Error(`Chunk count failed: ${error.message}`);
+  return count ?? 0;
+}
+
+/**
+ * Find or create a paper row. Returns { paper, unchanged }.
+ *
+ * `unchanged` is true only when the same file set (by hash) was ingested
+ * COMPLETELY: the hash is written last, by `markIngested`, and the paper must
+ * also have chunks. Writing the hash up front, as this used to, meant that a run
+ * which failed halfway left a paper marked as done and every retry skipped it.
+ */
+export async function upsertPaper(meta, { title, sha256, pages, sourceUrl = null, force = false }) {
+  const existing = await findPaper(meta);
+
+  if (existing && !force && existing.sha256 === sha256 && (await chunkCount(existing.id)) > 0) {
     return { paper: existing, unchanged: true };
   }
 
@@ -78,25 +107,36 @@ export async function upsertPaper(meta, { title, sha256, pages, sourceUrl = null
     session: meta.session,
     paper_no: meta.paperNo,
     variant: meta.variant,
+    paper_ref: meta.paperRef ?? "",
+    tier: meta.tier ?? null,
     title,
     code: meta.code,
     source_url: sourceUrl,
     pages,
-    sha256,
+    // Cleared until the run succeeds; see markIngested.
+    sha256: null,
     ingested_at: new Date().toISOString(),
   };
 
   if (existing) {
     const { data, error } = await db.from("papers").update(row).eq("id", existing.id).select("id").single();
     if (error) throw new Error(`Paper update failed: ${error.message}`);
-    // Content changed: drop the old chunks so we never serve a stale mix.
-    await db.from("chunks").delete().eq("paper_id", existing.id);
     return { paper: data, unchanged: false };
   }
 
   const { data, error } = await db.from("papers").insert(row).select("id").single();
   if (error) throw new Error(`Paper insert failed: ${error.message}`);
   return { paper: data, unchanged: false };
+}
+
+/** Record that a paper was ingested in full. The last write of a successful run. */
+export async function markIngested(paperId, sha256, { totalMarks = null } = {}) {
+  const patch = { sha256, ingested_at: new Date().toISOString() };
+  // The total the paper prints for itself. Marking uses it as the denominator,
+  // so a question the parser lost cannot inflate a student's percentage.
+  if (totalMarks) patch.total_marks = totalMarks;
+  const { error } = await db.from("papers").update(patch).eq("id", paperId);
+  if (error) throw new Error(`Could not mark the paper as ingested: ${error.message}`);
 }
 
 /** Insert chunks in batches small enough to stay under the request size cap. */
@@ -109,6 +149,46 @@ export async function insertChunks(rows, batch = 100) {
     written += slice.length;
   }
   return written;
+}
+
+/**
+ * Replace a paper's question chunks WITHOUT changing the ids of the ones that
+ * stay.
+ *
+ * Deleting every chunk and inserting fresh ones, as re-ingest used to, gave each
+ * question a new id. Students' recall schedules cascade-delete with the chunk,
+ * their marked attempts lose their link to it, and saved mocks point at ids
+ * that no longer exist. So rows are upserted on (paper, kind, question number),
+ * and only questions that are genuinely gone are removed.
+ */
+export async function replaceQuestionChunks(paperId, kind, rows, batch = 100) {
+  let written = 0;
+  for (let i = 0; i < rows.length; i += batch) {
+    const slice = rows.slice(i, i + batch);
+    const { error } = await db.from("chunks").upsert(slice, { onConflict: "paper_id,kind,question_no" });
+    if (error) throw new Error(`Chunk upsert failed: ${error.message}`);
+    written += slice.length;
+  }
+
+  const keep = new Set(rows.map((r) => r.question_no));
+  const { data: existing, error } = await db
+    .from("chunks")
+    .select("id,question_no")
+    .eq("paper_id", paperId)
+    .eq("kind", kind);
+  if (error) throw new Error(`Chunk listing failed: ${error.message}`);
+  const stale = (existing ?? []).filter((c) => !keep.has(c.question_no)).map((c) => c.id);
+  for (let i = 0; i < stale.length; i += 100) {
+    await db.from("chunks").delete().in("id", stale.slice(i, i + 100));
+  }
+  return written;
+}
+
+/** For content with no stable per-row key (syllabus sections): swap the lot. */
+export async function replaceAllChunks(paperId, kind, rows) {
+  const { error } = await db.from("chunks").delete().eq("paper_id", paperId).eq("kind", kind);
+  if (error) throw new Error(`Could not clear old ${kind} chunks: ${error.message}`);
+  return insertChunks(rows);
 }
 
 export async function coverage() {
@@ -135,7 +215,7 @@ export async function upsertGradeBoundaries(rows) {
   if (!rows.length) return 0;
   const { error } = await db
     .from("grade_boundaries")
-    .upsert(rows, { onConflict: "subject_code,year,session,paper_no,grade" });
+    .upsert(rows, { onConflict: "subject_code,year,session,paper_ref,tier,grade" });
   if (error) throw new Error(`Grade boundary upsert failed: ${error.message}`);
   return rows.length;
 }

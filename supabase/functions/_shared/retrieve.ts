@@ -54,7 +54,7 @@ export interface Citation {
 
 /* --------------------------------------------------- query understanding -- */
 
-const SESSION_LETTER: Record<string, string> = { m: "Mar", s: "Jun", w: "Nov" };
+const SESSION_LETTER: Record<string, string> = { j: "Jan", m: "Mar", s: "Jun", w: "Nov" };
 
 export interface QueryFilters {
   paperCode?: string;
@@ -62,54 +62,119 @@ export interface QueryFilters {
   questionNo?: string;
   session?: string;
   paperNo?: number;
+  /** The paper reference as printed: "1H", "2PR", "01", "42". */
+  paperRef?: string;
+  /** An Edexcel subject code named in the text, e.g. "E-4PH1". */
+  subjectCode?: string;
 }
 
 /**
- * Pull exam identifiers out of free text. Handles both the filename form
- * (0625_s19_qp_42) and the way students actually write it
- * ("physics 2019 june paper 4 variant 2 question 7b").
+ * Pull exam identifiers out of free text. Handles the filename form
+ * (E-4PH1_s24_qp_1P, 0625_s19_qp_42) and the way students actually write it
+ * ("4PH1 paper 1P June 2024 question 7b", "physics january 2024 paper 2H Q3").
  */
 export function parseQuery(text: string): QueryFilters {
   const f: QueryFilters = {};
   const t = text.toLowerCase();
 
-  // Filename form: 0625_s19_qp_42 / 0625 w21 ms 22 / e-4ma1_s24_qp_13
+  // Filename form: 0625_s19_qp_42 / 0625 w21 ms 22 / e-4ph1_s24_qp_1p / e-4ma1_j24_ms_2h
   //
   // The subject token is a Cambridge 4-digit code or a board-prefixed one, and
   // the separators are underscores. Which are word characters, so `\b` cannot
-  // be used to bound them.
+  // be used to bound them. The paper reference is digits then optional letters
+  // (Edexcel 1H, 1PR) or two digits (Cambridge 42).
   const file = t.match(
-    /(?:^|[^a-z0-9])((?:[a-z]{1,3}-)?[a-z0-9]{3,12})[_ -]([msw])(\d{2})[_ -]?(?:qp|ms|er|papers?|p)?[_ -]?(\d)(\d)?(?:[^0-9]|$)/,
+    /(?:^|[^a-z0-9])((?:[a-z]{1,3}-)?[a-z0-9]{3,12})[_ -]([jmsw])(\d{2})[_ -]?(?:qp|ms|er|papers?|p)?[_ -]?(\d[0-9a-z]{0,2})(?:[^0-9a-z]|$)/,
   );
   if (file && /\d/.test(file[1])) {
     const yy = Number(file[3]);
     f.paperCode = `${file[1]}_${file[2]}${file[3]}`;
     f.years = [yy + (yy > 50 ? 1900 : 2000)];
     f.session = SESSION_LETTER[file[2]];
-    f.paperNo = Number(file[4]);
+    f.paperRef = file[4].toUpperCase();
+    f.paperNo = Number(file[4].replace(/^0+/, "")[0]);
+    if (/^[a-z]-/.test(file[1])) f.subjectCode = file[1].toUpperCase();
   }
 
-  // Plain year, e.g. "2019" or "june 2021"
+  // An Edexcel code written on its own: "4PH1", "4ma1 1h".
+  if (!f.subjectCode) {
+    const code = t.match(/(?:^|[^a-z0-9])(4[a-z]{2}\d)(?=[^a-z0-9]|$)/)?.[1];
+    if (code) f.subjectCode = `E-${code.toUpperCase()}`;
+  }
+
+  // Plain year, e.g. "2024" or "june 2021"
   if (!f.years) {
     const years = [...t.matchAll(/\b(20[0-2]\d)\b/g)].map((m) => Number(m[1]));
     if (years.length) f.years = [...new Set(years)];
   }
   if (!f.session) {
-    if (/\b(june|summer|may\/june|may)\b/.test(t)) f.session = "Jun";
-    else if (/\b(november|winter|oct\/nov|october)\b/.test(t)) f.session = "Nov";
+    if (/\b(january|jan)\b/.test(t)) f.session = "Jan";
+    // "may" is a modal verb ("what may be observed"), so it only counts as a
+    // month when a year or "june" follows it.
+    else if (/\b(june|jun|summer|may\s*\/\s*june|may\s+20\d\d)\b/.test(t)) f.session = "Jun";
+    else if (/\b(november|nov|winter|oct\/nov|october)\b/.test(t)) f.session = "Nov";
     else if (/\b(march|feb\/mar|february)\b/.test(t)) f.session = "Mar";
   }
+
+  // "paper 1P", "paper 2H", "paper 4": an explicit reference beats a guess.
   if (f.paperNo === undefined) {
-    const p = t.match(/\bpaper\s*(\d)\b/);
-    if (p) f.paperNo = Number(p[1]);
+    const p = t.match(/\bpaper\s*(\d{1,2}[a-z]{0,2})\b/);
+    if (p) {
+      f.paperRef = f.paperRef ?? p[1].toUpperCase();
+      f.paperNo = Number(p[1].replace(/^0+/, "")[0]);
+    }
+  }
+  // "4ph1 1p", "4ma1/2h": the reference following an Edexcel code.
+  if (!f.paperRef && f.subjectCode) {
+    const code = f.subjectCode.slice(2).toLowerCase();
+    const r = t.match(new RegExp(code + "[\\s/_-]+(0?[12][a-z]{0,2})(?=[^a-z0-9]|$)"));
+    if (r) {
+      f.paperRef = r[1].toUpperCase();
+      f.paperNo = Number(r[1].replace(/^0+/, "")[0]);
+    }
   }
 
-  // Question reference: q4b, question 4(b)(ii), Q7 a i
-  const q = t.match(/\b(?:q|question)\s*\.?\s*(\d{1,2})\s*\(?([a-h])?\)?\s*\(?((?:i|v|x)+)?\)?/);
+  // Question reference: q4b, question 4(b)(ii), Q7 (a), q3 a i.
+  //
+  // A roman numeral only counts inside brackets. Without that, "question 4 is
+  // worth 3 marks" read the "i" of "is" as part (i) and asked for 4(i).
+  const q = t.match(/\b(?:q|question)\s*\.?\s*(\d{1,2})(?:\s*\(([a-h])\)|([a-h])(?![a-z]))?\s*(?:\(((?:i|v|x)+)\))?/);
   if (q) {
-    f.questionNo = q[1] + (q[2] ? `(${q[2]})` : "") + (q[3] ? `(${q[3]})` : "");
+    const part = q[2] ?? q[3];
+    f.questionNo = q[1] + (part ? `(${part})` : "") + (q[4] ? `(${q[4]})` : "");
   }
   return f;
+}
+
+/** Exam sitting dates are not publication dates; retain dates for paper lookups. */
+export function learningFilters(text: string): QueryFilters {
+  const filters = parseQuery(text);
+  if (!filters.paperCode && !filters.questionNo && !filters.paperRef &&
+      !/\b(?:past\s+papers?|papers?\s+(?:from|in|of)|questions?\s+(?:from|in))\b/i.test(text)) {
+    delete filters.years;
+    delete filters.session;
+  }
+  return filters;
+}
+
+/** Only referential follow-ups inherit topic text, never generated answer claims. */
+export function contextualQuery(question: string, history: { role: string; text: string }[] = []): string {
+  if (!/\b(?:it|that|this|these|those|they|them|again|simpler|more detail|another example)\b|^(?:why|how so|continue|go on)[?!.\s]*$/i.test(question)) return question;
+  const prior = history.filter((h) => h.role === "user" && typeof h.text === "string").slice(-2);
+  return [...prior.map((h) => h.text.slice(0, 1000)), question].join("\n");
+}
+
+const FILLER = new Set(("a an the and or but of to in on for with from by at as is are was were be been being " +
+  "i me my we our you your it its this that these those they them do does did can could would should " +
+  "will shall may how what why when where which who please explain explanation tell help know need " +
+  "learn learning understand understanding about more give show find exam exams examination igcse edexcel " +
+  "pearson international gcse question questions answer answers marks marking points paper papers syllabus").split(" "));
+
+export function keywordQuery(query: string): string {
+  const topic = query.toLowerCase().replace(/\b(?:difference|differences|comparison)\s+between\b/g, " ");
+  return [...new Set(topic.match(/[a-z][a-z0-9]*/g) ?? [])]
+    .filter((word) => word.length >= 3 && !FILLER.has(word) && !/^4[a-z]{2}\d$/.test(word))
+    .slice(0, 20).map((word) => `"${word}"`).join(" OR ");
 }
 
 /* ---------------------------------------------------------------- search -- */
@@ -120,6 +185,7 @@ export interface SearchOptions {
   topic?: string | null;
   count?: number;
   expandSiblings?: boolean;
+  includeSyllabus?: boolean;
   filters?: QueryFilters;
 }
 
@@ -140,19 +206,40 @@ async function exactLookup(
   db: SupabaseClient,
   filters: QueryFilters,
   subject?: string | null,
-): Promise<Chunk[]> {
-  if (!filters.questionNo || !filters.paperCode) return [];
+): Promise<{ rows: Chunk[]; ambiguous: string[] }> {
+  const none = { rows: [] as Chunk[], ambiguous: [] as string[] };
+  if (!filters.questionNo) return none;
+
+  // A question number means nothing without the paper it is in. Something has
+  // to narrow it: a paper code, or a year and a series.
+  const oneYear = filters.years?.length === 1 ? filters.years[0] : null;
+  if (!filters.paperCode && !(oneYear && filters.session)) return none;
 
   let q = db
     .from("chunks")
-    .select(CHUNK_FIELDS)
+    .select(`${CHUNK_FIELDS},paper_id,paper_ref`)
     .eq("kind", "question")
-    .ilike("paper_code", `%${filters.paperCode}%`)
-    .limit(200);
-  if (subject) q = q.eq("subject_code", subject);
+    .limit(400);
+  const code = subject ?? filters.subjectCode ?? null;
+  if (code) q = q.eq("subject_code", code);
+  if (filters.paperCode) q = q.ilike("paper_code", `%${filters.paperCode}%`);
+  if (oneYear) q = q.eq("year", oneYear);
+  if (filters.session) q = q.eq("session", filters.session);
+  if (filters.paperRef) q = q.ilike("paper_ref", filters.paperRef);
 
   const { data, error } = await q;
-  if (error || !data) return [];
+  if (error) throw new Error(`Question lookup failed: ${error.message}`);
+  if (!data) return none;
+
+  // More than one paper still matches ("June 2024 Q4" with a 1H and a 2H that
+  // both have a Q4). Picking one would mark the student's answer against
+  // another paper's mark scheme, which is the worst thing this app can do, so
+  // nothing is pinned and the caller is told which papers are candidates.
+  const papers = new Map<string, string>();
+  for (const c of data as (Chunk & { paper_id: string })[]) {
+    papers.set(c.paper_id, c.paper_code ?? c.paper_id);
+  }
+  if (papers.size > 1) return { rows: [], ambiguous: [...papers.values()].sort() };
 
   // Numbering is written inconsistently ("4(b)", "4 b", "4b"), so compare on a
   // stripped form rather than trusting either side's punctuation.
@@ -161,46 +248,114 @@ async function exactLookup(
 
   const exact = rows.filter((c) => strip(c.question_no) === want);
   // "Q4" should also bring back 4(a), 4(b)(i). The whole question.
-  const children = rows.filter((c) => strip(c.question_no).startsWith(want) && strip(c.question_no) !== want);
+  const children = rows.filter((c) => {
+    const got = strip(c.question_no);
+    return got.startsWith(want) && got !== want && !/^\d/.test(got.slice(want.length));
+  });
 
-  return [...exact, ...children].slice(0, 12).map((c, i) => ({ ...c, score: 100 - i }));
+  return {
+    rows: [...exact, ...children].slice(0, 12).map((c, i) => ({ ...c, score: 100 - i })),
+    ambiguous: [],
+  };
 }
 
 function strip(n: string | null): string {
   return (n ?? "").replace(/[^a-z0-9]/gi, "").toLowerCase();
 }
 
+/** Search results. `ambiguous` lists papers when a question number matched several. */
+export type SearchHits = Chunk[] & { ambiguous?: string[] };
+
 export async function search(
   db: SupabaseClient,
   query: string,
   opts: SearchOptions = {},
-): Promise<Chunk[]> {
+): Promise<SearchHits> {
   const filters = opts.filters ?? parseQuery(query);
 
   // A named paper + question wins outright; nothing similarity finds can beat
   // the question the student actually asked about.
-  const pinned = await exactLookup(db, filters, opts.subject);
+  const lookup = await exactLookup(db, filters, opts.subject);
+  const pinned = lookup.rows;
 
-  const embedding = await embedOne(query, "RETRIEVAL_QUERY");
+  // An explicit reference must either resolve exactly or be refused. Semantic
+  // neighbours cannot replace a missing question, and require no quota here.
+  const exactReference = filters.questionNo &&
+    (filters.paperCode || (filters.years?.length === 1 && filters.session));
+  if (exactReference) {
+    const hits: SearchHits = opts.expandSiblings && pinned.length
+      ? await expandSiblings(db, pinned) : pinned;
+    if (lookup.ambiguous.length) hits.ambiguous = lookup.ambiguous;
+    return hits;
+  }
 
-  const { data, error } = await db.rpc("match_chunks", {
+  let embedding: number[] | null = null;
+  try {
+    embedding = await embedOne(query, "RETRIEVAL_QUERY");
+  } catch (e) {
+    // match_chunks supports a null vector and still searches the real corpus.
+    console.warn("Embedding unavailable; using full-text retrieval:", e instanceof Error ? e.message : String(e));
+  }
+
+  const params = {
     query_embedding: embedding,
     query_text: query,
-    p_subject: opts.subject ?? null,
+    p_subject: opts.subject ?? filters.subjectCode ?? null,
     p_kinds: opts.kinds ?? null,
     p_years: filters.years ?? null,
     p_paper_code: filters.paperCode ?? null,
     p_topic: opts.topic ?? null,
     match_count: opts.count ?? 8,
-  });
+    p_session: filters.session ?? null,
+    p_paper_ref: filters.paperRef ?? null,
+  };
+  let { data, error } = await db.rpc("match_chunks", params);
   if (error) throw new Error(`Retrieval failed: ${error.message}`);
 
-  let hits = (data ?? []) as Chunk[];
+  const alternatives = keywordQuery(query);
+  if (alternatives && alternatives !== query) {
+    // Search topic words independently of conversational filler. Prefer their
+    // conjunction, then fill sparse results with ranked alternatives.
+    const conjunction = alternatives.replaceAll(" OR ", " ");
+    const strict = await db.rpc("match_chunks", { ...params, query_embedding: null, query_text: conjunction });
+    if (strict.error) throw new Error(`Retrieval failed: ${strict.error.message}`);
+    const lexical = conjunction === alternatives || (strict.data?.length ?? 0) >= (opts.count ?? 8)
+      ? strict
+      : await db.rpc("match_chunks", { ...params, query_embedding: null, query_text: alternatives });
+    if (lexical.error) throw new Error(`Retrieval failed: ${lexical.error.message}`);
+    // Fuse ranked lists, not raw SQL scores: otherwise one branch can dominate.
+    const merged = new Map<string, Chunk>();
+    const lexicalRows = [...(strict.data ?? []), ...(lexical.data ?? [])];
+    const uniqueLexical = [...new Map(lexicalRows.map((row: Chunk) => [row.id, row])).values()];
+    for (const list of [uniqueLexical, data ?? []]) {
+      for (const [rank, row] of (list as Chunk[]).entries()) {
+        const old = merged.get(row.id);
+        merged.set(row.id, { ...row, score: (old?.score ?? 0) + 1 / (60 + rank + 1) });
+      }
+    }
+    data = [...merged.values()].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, opts.count ?? 8);
+  }
+
+  let hits: SearchHits = (data ?? []) as Chunk[];
+  if (opts.includeSyllabus && alternatives) {
+    const spec = await db.rpc("match_chunks", {
+      ...params, query_embedding: null, query_text: alternatives,
+      p_kinds: ["syllabus"], match_count: 2,
+    });
+    if (spec.error) throw new Error(`Specification retrieval failed: ${spec.error.message}`);
+    const ids = new Set((spec.data ?? []).map((c: Chunk) => c.id));
+    const topScore = Math.max(0, ...hits.map((c) => c.score ?? 0));
+    hits = [...(spec.data ?? []).map((c: Chunk, i: number) => ({ ...c, score: topScore + 0.001 / (i + 1) })),
+      ...hits.filter((c) => !ids.has(c.id))];
+  }
+  if (lookup.ambiguous.length) hits.ambiguous = lookup.ambiguous;
 
   // Merge the pinned exact matches in front, de-duplicated.
   if (pinned.length) {
     const seen = new Set(pinned.map((c) => c.id));
+    const ambiguous = hits.ambiguous;
     hits = [...pinned, ...hits.filter((c) => !seen.has(c.id))];
+    if (ambiguous) hits.ambiguous = ambiguous;
   } else if (filters.questionNo) {
     // No paper was named, so only the number is known: promote number matches
     // rather than trusting similarity to have found them.
@@ -209,7 +364,9 @@ export async function search(
   }
 
   if (opts.expandSiblings && hits.length) {
+    const ambiguous = hits.ambiguous;
     hits = await expandSiblings(db, hits);
+    if (ambiguous) hits.ambiguous = ambiguous;
   }
   return hits;
 }
@@ -224,15 +381,16 @@ function rankExact(c: Chunk, want: string): number {
 
 /** Pull in the other parts of the top hits' questions, de-duplicated. */
 async function expandSiblings(db: SupabaseClient, hits: Chunk[]): Promise<Chunk[]> {
-  const seeds = hits.slice(0, 3);
+  const seeds = hits.filter((h) => h.kind === "question" && h.question_no).slice(0, 3);
   const seen = new Set(hits.map((h) => h.id));
   const out = [...hits];
+  const siblingScore = Math.min(...hits.map((h) => h.score ?? 0)) - 0.001;
   for (const seed of seeds) {
     const { data } = await db.rpc("question_siblings", { p_chunk_id: seed.id });
     for (const sib of (data ?? []) as Chunk[]) {
       if (seen.has(sib.id)) continue;
       seen.add(sib.id);
-      out.push({ ...sib, score: (seed.score ?? 0) * 0.5 });
+      out.push({ ...sib, score: siblingScore });
     }
   }
   return out;
@@ -248,12 +406,22 @@ export async function getQuestion(db: SupabaseClient, chunkId: string): Promise<
 /* ----------------------------------------------------------- formatting -- */
 
 export function label(c: Chunk): string {
+  // The board prefix ("E-") is how the repo tells boards apart, not something a
+  // student writes or recognises. Students say 4PH1.
+  const code = (c.subject_code ?? "").replace(/^[A-Z]-/, "");
   if (c.kind === "syllabus") {
-    return `${c.subject_code} syllabus${c.topic ? `: ${c.topic}` : ""}`;
+    return `${code} syllabus${c.topic ? `: ${c.topic}` : ""}`;
   }
-  const bits = [c.subject_code];
+  const bits = [code];
   if (c.session && c.year) bits.push(`${c.session} ${c.year}`);
-  if (c.paper_no) bits.push(`P${c.paper_no}${c.variant ?? ""}`);
+
+  // The paper reference is the last part of the paper code
+  // ("E-4PH1_s24_qp_1P" -> "1P"). It is the whole identity of an Edexcel paper:
+  // 1P and 1PR, 1F and 1H are different papers.
+  const ref = c.paper_code?.split("_").length === 4 ? c.paper_code.split("_")[3].toUpperCase() : null;
+  if (ref) bits.push(/^\d{2}$/.test(ref) ? `P${ref}` : `Paper ${ref}`);
+  else if (c.paper_no) bits.push(`P${c.paper_no}${c.variant ?? ""}`);
+
   if (c.question_no) bits.push(`Q${c.question_no}`);
   return bits.join(" ");
 }

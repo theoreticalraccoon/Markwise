@@ -18,7 +18,7 @@
 
 import { preflight, fail, json } from "../_shared/http.ts";
 import { requireUser, adminClient } from "../_shared/db.ts";
-import { claim, QuotaExceeded } from "../_shared/quota.ts";
+import { claim, release, QuotaExceeded } from "../_shared/quota.ts";
 import { generateJSON } from "../_shared/gemini.ts";
 import {
   search,
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    await claim(user.id, "mark");
+    await claim(user, "mark");
   } catch (e) {
     if (e instanceof QuotaExceeded) return fail(req, e.message, 429);
     throw e;
@@ -104,10 +104,26 @@ Deno.serve(async (req) => {
       parts = hits;
     }
   } catch (e) {
+    await release(user, "mark");
     return fail(req, e instanceof Error ? e.message : "Could not find that question.", 502);
   }
 
+  // The student named a question but more than one paper still fits ("June 2024
+  // Q4" when a 1H and a 2H both have a Q4). Marking against a guessed paper
+  // means marking against another paper's scheme, so ask instead of guessing.
+  const ambiguous = (parts as { ambiguous?: string[] }).ambiguous;
+  if (ambiguous?.length && !body.chunkId) {
+    await release(user, "mark");
+    return json(req, {
+      error: "ambiguous_paper",
+      message:
+        `That question number exists in more than one paper (${ambiguous.slice(0, 6).join(", ")}). ` +
+        `Say which paper, for example "paper 1H".`,
+    }, 409);
+  }
+
   if (parts.length === 0) {
+    await release(user, "mark");
     return json(req, {
       error: "not_found",
       message:
@@ -121,6 +137,7 @@ Deno.serve(async (req) => {
     : parts[0];
 
   if (!target.ms_content) {
+    await release(user, "mark");
     return json(req, {
       error: "no_markscheme",
       message: `The mark scheme for ${label(target)} has not been ingested yet, so Markwise will not guess at the marks.`,
@@ -140,6 +157,7 @@ Deno.serve(async (req) => {
       { system: MARK_SYSTEM, temperature: 0, maxOutputTokens: 2200 },
     );
   } catch (e) {
+    await release(user, "mark");
     return fail(req, e instanceof Error ? e.message : "Marking failed.", 502);
   }
 
@@ -149,7 +167,10 @@ Deno.serve(async (req) => {
   const awarded = Math.max(0, Math.min(cap, Number(result.awarded) || 0));
 
   const questionRef = label(target);
-  const topic = result.topic ?? target.topic ?? null;
+  // The corpus topic first: it comes from the syllabus vocabulary. A topic the
+  // model made up ("Forces" vs "Forces and motion") splits one topic into two in
+  // the student's mastery table.
+  const topic = target.topic ?? result.topic ?? null;
 
   // ---- record -------------------------------------------------------------
   let attemptId: string | null = null;

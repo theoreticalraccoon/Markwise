@@ -19,17 +19,42 @@ function key(no) {
   return String(no ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+/** Merge parallel language editions of one mark scheme by question number. */
+export function combineMarkSchemeVariants(variants) {
+  const combined = new Map();
+  for (const variant of variants) {
+    for (const row of variant.rows) {
+      const k = key(row.questionNo);
+      if (!k) continue;
+      if (!combined.has(k)) combined.set(k, { row, versions: [] });
+      combined.get(k).versions.push({ label: variant.label, text: row.text });
+    }
+  }
+
+  return [...combined.values()].map(({ row, versions }) => {
+    const unique = [...new Set(versions.map((version) => version.text))];
+    if (unique.length === 1) return { ...row, text: unique[0] };
+    return {
+      ...row,
+      text: versions.map((version) => `${version.label}:\n${version.text}`).join("\n\n"),
+    };
+  });
+}
+
 /** '4(b)(ii)' → ['4','b','ii'] */
 function segments(no) {
   const k = key(no);
-  const m = k.match(/^(\d+)([a-h])?((?:i|v|x)+)?$/);
+  const m = k.match(/^([ab]?\d+)([a-h])?((?:i|v|x)+)?$/);
   return m ? [m[1], m[2] ?? "", m[3] ?? ""] : [k];
 }
 
 export function pairQuestions(questions, msRows) {
   const byKey = new Map();
+  const ambiguous = new Set();
   for (const r of msRows) {
     const k = key(r.questionNo);
+    const existing = byKey.get(k);
+    if (existing && (existing.text !== r.text || existing.marks !== r.marks)) ambiguous.add(k);
     if (k && !byKey.has(k)) byKey.set(k, r);
   }
 
@@ -37,6 +62,10 @@ export function pairQuestions(questions, msRows) {
 
   const paired = questions.map((q) => {
     const qk = key(q.questionNo);
+    if (ambiguous.has(qk)) {
+      stats.unmatched++;
+      return { ...q, msText: null, msMarks: null };
+    }
 
     // 1. Exact key match.
     let ms = byKey.get(qk);
@@ -52,13 +81,17 @@ export function pairQuestions(questions, msRows) {
     //    "4" would mark a student's answer against the whole question's
     //    scheme, which is worse than not marking it at all.
     const [qn, qp, qs] = segments(q.questionNo);
+    const normalised = [];
     for (const [k, row] of byKey) {
       const [rn, rp, rs] = segments(k);
       if (rn !== qn) continue;
       if ((qp || "") !== (rp || "")) continue;
       if (qs && rs && qs !== rs) continue;
+      normalised.push({ row, ambiguous: ambiguous.has(k) });
+    }
+    if (normalised.length === 1 && !normalised[0].ambiguous) {
       stats.normalised++;
-      return merge(q, row);
+      return merge(q, normalised[0].row);
     }
 
     // 3. Whole-question fallback: attach the root row, but only when the
@@ -69,6 +102,19 @@ export function pairQuestions(questions, msRows) {
       if (rootRow) {
         stats.root++;
         return merge(q, rootRow);
+      }
+
+      // ICT practical papers sometimes call a whole task "B5" while the
+      // scheme labels its only row "B5(a)". That is unambiguous only when
+      // there is exactly one scheme row under the lettered task root.
+      if (/^[ab]\d+$/i.test(String(q.questionRoot))) {
+        const candidates = msRows.filter((row) =>
+          key(row.questionRoot) === key(q.questionRoot),
+        );
+        if (candidates.length === 1) {
+          stats.root++;
+          return merge(q, candidates[0]);
+        }
       }
     }
 

@@ -10,7 +10,12 @@
  * timer and the in-flight ask request get cancelled on navigation.
  */
 
+import { esc } from "./ui/dom.js";
+
 const routes = new Map();
+
+/** Bumped on every navigation, so a slow render can tell it has been replaced. */
+let navToken = 0;
 let current = null;
 let cleanup = null;
 let container = null;
@@ -49,16 +54,42 @@ export function navigate(path, { replace = false } = {}) {
   }
 }
 
+/**
+ * Replace the outlet with a clean copy of itself.
+ *
+ * Every view wires its buttons with delegated listeners on the outlet, and
+ * `innerHTML = ...` does not remove listeners from the element that holds the
+ * markup. The outlet is the same element for the whole session, so each visit
+ * to a view stacked another set of handlers on it: on the third visit, one
+ * click on "Next" skipped three pages, "Revise" created three tasks, and
+ * "Show the mark scheme" toggled itself straight back. A fresh element per
+ * navigation has no listeners, no leftover markup, and no way for a render that
+ * is still in flight to write into the screen that replaced it.
+ */
+function freshOutlet() {
+  const next = container.cloneNode(false);
+  container.replaceWith(next);
+  container = next;
+  return next;
+}
+
 export async function handleRoute() {
   if (!container) return;
   const { name, segments, query } = parseHash();
   const module = routes.get(name) ?? routes.get("planner");
   if (!module) return;
 
+  const id = ++navToken;
+
   // Same route, different params: let the view decide rather than remounting.
   const sameRoute = current === name;
   if (!sameRoute) {
     cleanup?.();
+    cleanup = null;
+  } else if (cleanup) {
+    // The outlet is about to be replaced, so whatever the view attached to the
+    // old one (timers, document listeners) has to go with it.
+    cleanup();
     cleanup = null;
   }
 
@@ -66,17 +97,31 @@ export async function handleRoute() {
   document.body.dataset.route = name;
   markActiveNav(name);
 
+  const outlet = freshOutlet();
+
   try {
-    const result = await module.render(container, { segments, query, sameRoute });
-    if (typeof result === "function") {
-      cleanup?.();
-      cleanup = result;
+    const result = await module.render(outlet, { segments, query, sameRoute });
+
+    // The student navigated again while this was loading. Whatever it built is
+    // in an outlet that is no longer on screen; only its cleanup still matters.
+    if (id !== navToken) {
+      if (typeof result === "function") result();
+      return;
+    }
+    if (typeof result === "function") cleanup = result;
+
+    // Move keyboard and screen-reader focus to the new page, unless the view
+    // already put it somewhere useful (an autofocused input, say).
+    if (document.activeElement === document.body || !outlet.contains(document.activeElement)) {
+      if (!outlet.contains(document.activeElement) && document.activeElement?.tagName !== "INPUT") {
+        outlet.focus({ preventScroll: true });
+      }
     }
   } catch (e) {
     console.error(`Route "${name}" failed`, e);
-    container.innerHTML = `<div class="empty error"><h3>This page failed to load</h3><p>${
-      e.message ?? ""
-    }</p></div>`;
+    if (id === navToken) {
+      outlet.innerHTML = `<div class="empty error"><h3>This page failed to load</h3><p>${esc(e.message ?? "")}</p></div>`;
+    }
   }
 }
 

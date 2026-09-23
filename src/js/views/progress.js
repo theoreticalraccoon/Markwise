@@ -3,17 +3,25 @@
  *
  * Every number here comes from marks awarded against real mark schemes, which
  * is why it is worth showing: a topic mastery bar built on a chatbot's opinion
- * of your answer would be noise. Weak topics link straight back into the tools
- * that fix them. A targeted mock, a practice question, a revision task.
+ * of your answer would be noise, and a bar built on the student's own "I knew
+ * that" would be worse. Recall practice is deliberately absent from these
+ * figures for that reason.
+ *
+ * Weak topics link straight back into the tools that fix them: a targeted
+ * mock, recall practice, or a revision task on the planner.
  */
 
 import { esc, on } from "../ui/dom.js";
 import { toast, emptyState, skeleton, openModal } from "../ui/feedback.js";
 import { subjectName, mySubjectRows, corpusCode } from "../store.js";
-import { loadAttempts, loadMastery, weakTopics, getAttempt, loadMocks } from "../api/data.js";
+import {
+  loadAttempts, loadMastery, weakTopics, getAttempt, loadMocks,
+  progressSeries, subjectReadiness, loadPaperAttempts,
+} from "../api/data.js";
 import { formatDateTime } from "../lib/dates.js";
 import { addRevisionTask } from "./planner.js";
 import { navigate } from "../router.js";
+import { gradeHistory } from "../lib/exam.js";
 
 let root = null;
 let subject = null;
@@ -41,6 +49,7 @@ export async function render(container, { query = {} } = {}) {
             }).join("")}
           </select>
         </label>
+        <button class="btn-ghost" id="printProgress">Print</button>
       </div>
     </header>
     <div id="progBody">${skeleton(5)}</div>`;
@@ -49,14 +58,14 @@ export async function render(container, { query = {} } = {}) {
     subject = e.target.value || null;
     load();
   });
+  root.querySelector("#printProgress").addEventListener("click", () => window.print());
 
   on(root, "click", "[data-goto]", (_, btn) => navigate(btn.dataset.goto));
   on(root, "click", "[data-attempt]", (_, btn) => showAttempt(btn.dataset.attempt));
-  on(root, "click", "[data-drill]", (_, btn) =>
-    navigate("markpaper")
-  );
+  on(root, "click", "[data-paper]", (_, btn) => navigate(`markpaper/${btn.dataset.paper}`));
   on(root, "click", "[data-mock-weak]", () => navigate("mock"));
   on(root, "click", "[data-revise]", async (_, btn) => {
+    btn.disabled = true;
     try {
       await addRevisionTask({
         subject: btn.dataset.subject,
@@ -64,6 +73,7 @@ export async function render(container, { query = {} } = {}) {
         text: `Revise ${btn.dataset.revise}`,
       });
     } catch (e) {
+      btn.disabled = false;
       toast(e.message, "error");
     }
   });
@@ -75,25 +85,31 @@ async function load() {
   const body = root.querySelector("#progBody");
   body.innerHTML = skeleton(5);
 
-  let attempts, mastery, weak, mocks;
+  let attempts, mastery, weak, mocks, series, readiness, papers;
   try {
-    [attempts, mastery, weak, mocks] = await Promise.all([
+    [attempts, mastery, weak, mocks, series, readiness, papers] = await Promise.all([
       loadAttempts({ subject, limit: 200 }),
       loadMastery(subject),
       weakTopics(subject, 6),
-      loadMocks(10),
+      loadMocks(50),
+      progressSeries(subject, 12),
+      subject ? subjectReadiness(subject) : Promise.resolve(null),
+      loadPaperAttempts(50),
     ]);
   } catch (e) {
     body.innerHTML = `<div class="empty error"><h3>Couldn't load your progress</h3><p>${esc(e.message)}</p></div>`;
     return;
   }
 
-  if (!attempts.length) {
+  const grades = gradeHistory(mocks, papers, subject);
+  if (!attempts.length && !grades.length) {
     body.innerHTML = emptyState({
       icon: "📈",
       title: "Nothing marked yet",
       message: "Answer a past question and have it marked. Your topic profile builds itself from there.",
-      action: `<button class="btn-primary" data-goto="assistant">Mark an answer</button>`,
+      action: `
+        <button class="btn-primary" data-goto="assistant">Mark an answer</button>
+        <button class="btn-ghost" data-goto="markpaper">Or photograph a whole paper</button>`,
     });
     return;
   }
@@ -108,9 +124,23 @@ async function load() {
     <section class="stat-row">
       ${stat("Overall", `${overall}%`, `${marks.awarded} of ${marks.total} marks`)}
       ${stat("Questions marked", attempts.length, subject ? subjectName(subject) : "across all subjects")}
-      ${stat("Mocks sat", mocks.filter((m) => m.status === "marked").length, "marked papers")}
+      ${stat("Mocks sat", mocks.filter((m) => m.status === "marked" && (!subject || m.subject_code === subject)).length, "marked papers")}
       ${stat("Topics tracked", mastery.length, "with at least one attempt")}
     </section>
+
+    ${readiness ? readinessCard(readiness) : ""}
+
+    ${grades.map(gradeChart).join("")}
+
+    ${series.length > 1 ? `
+      <section class="card plain">
+        <header><h2>How you are trending</h2></header>
+        ${sparkline(series)}
+        <p class="field-hint">
+          One point per week you did some marked work. Weeks you did none are left out rather
+          than drawn as zero.
+        </p>
+      </section>` : ""}
 
     ${weak.length ? `
       <section class="card plain">
@@ -126,7 +156,10 @@ async function load() {
                 <span class="topic-name">${esc(w.topic)}${!subject ? ` <span class="muted">${esc(subjectName(w.subject_code))}</span>` : ""}</span>
                 <span class="bar"><span style="width:${pct}%" class="${pct >= 70 ? "good" : pct >= 40 ? "mid" : "poor"}"></span></span>
                 <span class="topic-score">${pct}%</span>
-                <button class="link-btn" data-revise="${esc(w.topic)}" data-subject="${esc(w.subject_code)}">Revise</button>
+                <span class="topic-actions">
+                  <button class="link-btn" data-revise="${esc(w.topic)}" data-subject="${esc(w.subject_code)}">Revise</button>
+                  <button class="link-btn" data-goto="recall?subject=${encodeURIComponent(w.subject_code)}">Practise</button>
+                </span>
               </div>`;
           }).join("")}
         </div>
@@ -147,6 +180,22 @@ async function load() {
               </div>`).join("")}
         </div>` : '<p class="muted">No topics classified yet.</p>'}
     </section>
+
+    ${papers.length ? `
+      <section class="card plain">
+        <header><h2>Papers you have had marked</h2></header>
+        <ul class="attempt-list">
+          ${papers.filter((p) => !subject || p.subject_code === subject).slice(0, 5).map((p) => `
+            <li>
+              <button data-paper="${esc(p.id)}">
+                <span class="attempt-ref">${esc(p.title)}</span>
+                <span class="attempt-topic">${esc(subjectName(p.subject_code))}</span>
+                <span class="attempt-score ${p.pct >= 70 ? "good" : p.pct >= 40 ? "mid" : "poor"}">${p.awarded}/${p.total}</span>
+                <span class="attempt-when muted">${formatDateTime(p.created_at)}</span>
+              </button>
+            </li>`).join("")}
+        </ul>
+      </section>` : ""}
 
     <section class="card plain">
       <header><h2>Recent answers</h2></header>
@@ -173,6 +222,121 @@ function stat(label, value, sub) {
       <span class="stat-value">${esc(value)}</span>
       <span class="stat-label">${esc(label)}</span>
       <span class="stat-sub">${esc(sub)}</span>
+    </div>`;
+}
+
+function gradeChart({ subject: code, points }) {
+  const width = 640, height = 144, pad = 20;
+  const start = Date.parse(points[0].at), end = Date.parse(points.at(-1).at);
+  const plotted = points.map((p) => ({ ...p,
+    x: start === end ? width / 2 : pad + (Date.parse(p.at) - start) / (end - start) * (width - pad * 2),
+    y: height - pad - p.value / 9 * (height - pad * 2),
+  }));
+  const path = plotted.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  return `
+    <section class="card plain grade-history" data-grade-subject="${esc(code)}">
+      <header><h2>${esc(subjectName(code))}: predicted grades</h2></header>
+      <svg viewBox="0 0 ${width} ${height}" class="spark-svg" role="img"
+        aria-label="${esc(subjectName(code))} predicted grades: ${points.map((p) => p.grade).join(", ")}">
+        <path d="${path}" class="spark-line"></path>
+        ${plotted.map((p, i) => `<circle cx="${p.x}" cy="${p.y}" r="4" class="spark-dot">
+          <title>${esc(formatDateTime(p.at))}: grade ${p.grade}</title></circle>
+          ${i === plotted.length - 1 ? `<text x="${p.x}" y="${p.y - 8}" text-anchor="middle" fill="currentColor" font-size="12">${p.grade}</text>` : ""}`).join("")}
+      </svg>
+      <ul class="attempt-list">
+        ${points.slice(-5).reverse().map((p) => `<li><button data-goto="${esc(p.route)}">
+          <span class="attempt-ref">${esc(p.title)}</span><span class="attempt-score">Grade ${p.grade}</span>
+          <span class="attempt-when muted">${formatDateTime(p.at)}</span>
+        </button></li>`).join("")}
+      </ul>
+    </section>`;
+}
+
+/**
+ * Readiness, as three honest numbers rather than one invented one.
+ *
+ * A single "you are 72% ready" score would be a fiction: nothing in the data
+ * supports that precision. Coverage, accuracy and mocks sat are each real, and
+ * a student can see which one is the weak leg.
+ */
+function readinessCard(r) {
+  const coverage = r.topics_total ? Math.round((r.topics_seen / r.topics_total) * 100) : 0;
+  const strong = r.topics_total ? Math.round((r.topics_strong / r.topics_total) * 100) : 0;
+  const pct = Number(r.pct ?? 0);
+
+  return `
+    <section class="card plain readiness">
+      <header><h2>How ready you are for ${esc(subjectName(subject))}</h2></header>
+      <div class="readiness-grid">
+        <div class="readiness-leg">
+          <span class="readiness-n">${coverage}%</span>
+          <span class="readiness-label">of the syllabus touched</span>
+          <span class="readiness-sub muted">${r.topics_seen} of ${r.topics_total} topics have been marked at least once</span>
+        </div>
+        <div class="readiness-leg">
+          <span class="readiness-n ${pct >= 70 ? "good" : pct >= 40 ? "mid" : "poor"}">${pct || 0}%</span>
+          <span class="readiness-label">of the marks you attempted</span>
+          <span class="readiness-sub muted">${r.marks_awarded ?? 0} of ${r.marks_total ?? 0} marks</span>
+        </div>
+        <div class="readiness-leg">
+          <span class="readiness-n">${strong}%</span>
+          <span class="readiness-label">of topics at 70% or better</span>
+          <span class="readiness-sub muted">${r.topics_strong} topic${r.topics_strong === 1 ? "" : "s"} solid</span>
+        </div>
+        <div class="readiness-leg">
+          <span class="readiness-n">${r.mocks_marked ?? 0}</span>
+          <span class="readiness-label">mock${r.mocks_marked === 1 ? "" : "s"} sat</span>
+          <span class="readiness-sub muted">${
+            r.last_activity ? `last worked ${formatDateTime(r.last_activity)}` : "nothing yet"}</span>
+        </div>
+      </div>
+      ${coverage < 40 ? `
+        <p class="field-hint">
+          Most of the syllabus has never been marked, so the percentage above describes the
+          corner of it you have practised, not the subject.
+        </p>` : ""}
+    </section>`;
+}
+
+/**
+ * Weekly percentage as an inline SVG.
+ *
+ * Inline rather than a charting library: it is nine lines of path arithmetic,
+ * and adding a dependency to a no-build app to draw one polyline would be a
+ * poor trade.
+ */
+function sparkline(series) {
+  const W = 640;
+  const H = 120;
+  const pad = 8;
+  const points = series.map((row, i) => {
+    const x = series.length === 1 ? W / 2 : pad + (i * (W - pad * 2)) / (series.length - 1);
+    const y = H - pad - (Number(row.pct ?? 0) / 100) * (H - pad * 2);
+    return { x, y, row };
+  });
+  const path = points.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const area = `${path} L${points[points.length - 1].x.toFixed(1)} ${H - pad} L${points[0].x.toFixed(1)} ${H - pad} Z`;
+
+  const first = Number(series[0].pct ?? 0);
+  const last = Number(series[series.length - 1].pct ?? 0);
+  const delta = Math.round(last - first);
+
+  return `
+    <div class="spark">
+      <svg viewBox="0 0 ${W} ${H}" class="spark-svg" role="img"
+           aria-label="Weekly percentage, from ${first}% to ${last}%">
+        <line x1="${pad}" x2="${W - pad}" y1="${H - pad - 0.5 * (H - pad * 2)}" y2="${H - pad - 0.5 * (H - pad * 2)}" class="spark-mid"></line>
+        <path d="${area}" class="spark-area"></path>
+        <path d="${path}" class="spark-line"></path>
+        ${points.map((p) => `
+          <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" class="spark-dot">
+            <title>${esc(p.row.week_start)}: ${p.row.pct}% over ${p.row.attempts} question${p.row.attempts === 1 ? "" : "s"}</title>
+          </circle>`).join("")}
+      </svg>
+      <p class="spark-caption">
+        <strong class="${delta >= 0 ? "good" : "poor"}">${delta >= 0 ? "+" : ""}${delta} points</strong>
+        since ${esc(series[0].week_start)} · now ${last}%
+      </p>
     </div>`;
 }
 
@@ -203,7 +367,7 @@ async function showAttempt(id) {
               <ul class="breakdown compact">
                 ${a.breakdown.map((b) => `
                   <li class="${b.earned ? "earned" : "lost"}">
-                    <span class="tick">${b.earned ? "✓" : "✗"}</span>
+                    <span class="tick" aria-hidden="true">${b.earned ? "✓" : "✗"}</span>
                     <div><p class="point">${esc(b.point)}</p><p class="why">${esc(b.why)}</p></div>
                   </li>`).join("")}
               </ul>` : ""}
@@ -214,4 +378,9 @@ async function showAttempt(id) {
       }
     },
   });
+}
+
+/** Forget the subject filter. Called on sign-in and sign-out. */
+export function invalidate() {
+  subject = null;
 }

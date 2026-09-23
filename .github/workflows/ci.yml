@@ -1,0 +1,52 @@
+name: CI
+
+# The unit tests need no database, no network and no secrets, so they can gate
+# every push. The smoke tests hit a real Supabase project and a real Gemini
+# key, so they stay manual: see the Tests section of the README.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install browser tooling
+        run: npm ci
+
+      - name: Install ingestion dependencies used by the tests
+        run: npm ci --prefix ingest
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Parse check (browser modules and edge functions)
+        run: npm run check
+
+      - name: Syntax-check the ingestion CLI
+        run: |
+          set -e
+          for f in $(find ingest -type f \( -name '*.js' -o -name '*.mjs' \) -not -path '*/node_modules/*'); do
+            node --check "$f"
+          done
+
+      - name: Type-check the edge functions
+        # Deno is what actually runs them; this catches a broken import or a
+        # type error before a deploy does. --node-modules-dir=auto makes Deno
+        # resolve supabase-js's npm dependencies itself instead of expecting a
+        # node_modules/ that was never installed; without it every run fails
+        # on dependency resolution before it reaches our code, which is why
+        # this step used to be continue-on-error.
+        run: |
+          curl -fsSL https://deno.land/install.sh | DENO_INSTALL="$HOME/.deno" sh -s v2.1.4
+          export PATH="$HOME/.deno/bin:$PATH"
+          deno check --node-modules-dir=auto supabase/functions/*/index.ts

@@ -18,11 +18,13 @@ import { groundedSubjects, subjectName, corpusCode, coverageFor } from "../store
 import { loadThreads, createThread, loadMessages, deleteThread, getChunk, weakTopics } from "../api/data.js";
 import { ask, markAnswer, explainError } from "../api/ai.js";
 import { navigate } from "../router.js";
+import { paperLabel } from "../lib/exam.js";
+import { looksLikeMarking, splitMarkRequest, looksLikeTechnique } from "../lib/routing.js";
 
 const PROMPTS = [
-  "Explain how to find the nth term of a sequence",
-  "How do I get full marks on a 6-mark explain question?",
-  "What does the command word 'evaluate' actually want?",
+  "How do I get full marks on a 6-mark 'explain' question?",
+  "What is the difference between 'describe' and 'explain' in an Edexcel paper?",
+  "What does 'Show that' actually want from me?",
 ];
 
 let root = null;
@@ -30,6 +32,8 @@ let state = {
   threadId: null,
   subject: null,
   messages: [],
+  historyPage: 0,
+  hasOlder: false,
   busy: false,
   controller: null,
 };
@@ -43,9 +47,17 @@ export async function render(container, { query = {} } = {}) {
   wire();
   paint();
 
+  // `q` asks it for you; `draft` only fills the box, which is what the Library
+  // wants when it hands over a question for you to answer in your own words.
+  const input = root.querySelector("#chatInput");
   if (query.q) {
-    root.querySelector("#chatInput").value = query.q;
+    input.value = query.q;
     send();
+  } else if (query.draft) {
+    input.value = query.draft;
+    input.dispatchEvent(new Event("input"));
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
   }
 
   return () => {
@@ -78,7 +90,7 @@ function shell() {
 
       <form class="chat-composer" id="chatForm">
         <textarea id="chatInput" rows="1" data-autofocus
-          placeholder="Ask anything, or paste your answer and say which question it's for."></textarea>
+          placeholder="Ask a question..."></textarea>
         <button class="chat-send" id="chatSend" type="submit" aria-label="Send">↑</button>
         <button class="btn-ghost small" id="chatStop" type="button" hidden>Stop</button>
       </form>
@@ -123,11 +135,20 @@ function wire() {
   root.querySelector("#newChat").addEventListener("click", () => {
     state.threadId = null;
     state.messages = [];
+    state.historyPage = 0;
+    state.hasOlder = false;
     paint();
     input.focus();
   });
 
   root.querySelector("#historyBtn").addEventListener("click", openHistory);
+  on(root, "click", "[data-history-page]", async (_, btn) => {
+    if (state.busy) return;
+    setBusy(true);
+    try { await loadHistoryPage(Number(btn.dataset.historyPage)); }
+    catch (e) { toast(e.message, "error"); }
+    finally { setBusy(false); }
+  });
 
   on(root, "click", "[data-goto]", (_, btn) => navigate(btn.dataset.goto));
   on(root, "click", "[data-prompt]", (_, btn) => {
@@ -190,7 +211,16 @@ function paint() {
     return;
   }
 
-  thread.innerHTML = state.messages.map(messageHTML).join("");
+  if (state.messages.length > 50) {
+    state.messages = state.messages.slice(-50);
+    state.hasOlder = true;
+  }
+  const paging = state.hasOlder || state.historyPage > 0 ? `
+    <div class="view-actions">
+      ${state.hasOlder ? `<button class="btn-ghost small" data-history-page="${state.historyPage + 1}" ${state.busy ? "disabled" : ""}>Earlier messages</button>` : ""}
+      ${state.historyPage > 0 ? `<button class="btn-ghost small" data-history-page="0" ${state.busy ? "disabled" : ""}>Latest messages</button>` : ""}
+    </div>` : "";
+  thread.innerHTML = paging + state.messages.map(messageHTML).join("");
   scrollToBottom(thread);
 }
 
@@ -200,8 +230,9 @@ function welcome() {
     return `
       <div class="chat-welcome">
         <h2>No papers for your subjects yet</h2>
-        <p>The assistant answers from real past papers and mark schemes. Only some
-           subjects are loaded so far. Pick one of those in Settings, or check back.</p>
+        <p>The assistant answers from real past papers and mark schemes, and none have been
+           added for the subjects you take. Add one and everything here starts working.</p>
+        <button class="btn-primary" data-goto="papers">Add a past paper</button>
         <button class="btn-ghost" data-goto="settings">Choose subjects</button>
       </div>`;
   }
@@ -218,6 +249,10 @@ function welcome() {
         ${PROMPTS.map((p) => `<button class="chip-suggest" data-prompt="${esc(p)}">${esc(p)}</button>`).join("")}
       </div>
       <div id="weakSlot"></div>
+      <p class="chat-foot muted">
+        Want to pick the question yourself?
+        <button class="link-btn" data-goto="library">Browse the papers</button>
+      </p>
     </div>`;
 }
 
@@ -228,12 +263,19 @@ function messageHTML(m, i) {
   if (m.kind === "mark") {
     return `<div class="msg model">${markCard(m.result)}</div>`;
   }
+  if (m.kind === "note") {
+    return `<div class="msg model"><p class="msg-note">${esc(m.content)}</p></div>`;
+  }
+  // The typing dots mean "still coming". A message that has an error is not
+  // still coming, and leaving them running was the bug that made every failed
+  // marking attempt look like it was thinking forever.
+  const pending = !m.content && !m.error;
   return `
     <div class="msg model">
       <div class="bubble">
         ${m.content
           ? renderMarkdown(m.content).replace(/data-cite="/g, `data-msg="${i}" data-cite="`)
-          : '<span class="typing"><i></i><i></i><i></i></span>'}
+          : pending ? '<span class="typing"><i></i><i></i><i></i></span>' : ""}
         ${m.error ? `<p class="msg-error">${esc(m.error)}</p>` : ""}
       </div>
       ${m.grounded === false ? '<p class="ungrounded">Nothing matched in the papers you\'ve added, so this isn\'t grounded in a real one.</p>' : ""}
@@ -296,39 +338,6 @@ function markCard(r) {
 
 /* ---------------------------------------------------------------- routing -- */
 
-/**
- * Does this message want marking?
- *
- * The signal is a question reference plus enough prose to be an attempt at an
- * answer. Asking "what does 0625 Jun 2019 Q4(b) want?" is a question; pasting
- * four lines of working under the same reference is an answer. Guessing wrong
- * in the cautious direction just means a normal grounded reply, which is why
- * the bar is deliberately set high.
- */
-function looksLikeMarking(text) {
-  const t = text.trim();
-  if (/^\s*mark\b/i.test(t)) return true;
-
-  const hasRef = /\b(q(uestion)?\s*\.?\s*\d|_(qp|ms)_|\bpaper\s*\d)/i.test(t);
-  const longEnough = t.replace(/\s+/g, " ").length > 120 || t.split("\n").length >= 3;
-  return hasRef && longEnough;
-}
-
-/** Split "…Q4(b): my answer" into the reference and the answer. */
-function splitMarkRequest(text) {
-  const t = text.trim().replace(/^\s*mark\s*(my answer)?\s*[:,-]?\s*/i, "");
-  const lines = t.split("\n").map((l) => l.trim()).filter(Boolean);
-
-  // A short first line naming a question is the reference; the rest is the answer.
-  if (lines.length > 1 && lines[0].length < 90 && /\d/.test(lines[0])) {
-    return { question: lines[0], answer: lines.slice(1).join("\n") };
-  }
-  const colon = t.match(/^(.{5,90}?)\s*[:\-–]\s*([\s\S]+)$/);
-  if (colon && /\d/.test(colon[1])) return { question: colon[1], answer: colon[2] };
-
-  return { question: t.slice(0, 120), answer: t };
-}
-
 /* ---------------------------------------------------------------- sending -- */
 
 async function send() {
@@ -340,6 +349,12 @@ async function send() {
   if (!state.subject) {
     toast("Add some past papers first.", "error");
     return;
+  }
+
+  if (state.historyPage > 0) {
+    setBusy(true);
+    try { await loadHistoryPage(0); }
+    catch (e) { toast(e.message, "error"); setBusy(false); return; }
   }
 
   input.value = "";
@@ -357,7 +372,7 @@ async function send() {
   }
 
   if (looksLikeMarking(text)) await runMark(text);
-  else await runAsk(text);
+  else await runAsk(text, looksLikeTechnique(text) ? "technique" : "ask");
 
   setBusy(false);
   state.controller = null;
@@ -371,35 +386,56 @@ async function runMark(text) {
   const { question, answer } = splitMarkRequest(text);
   state.controller = new AbortController();
 
+  const drop = () => {
+    const i = state.messages.indexOf(placeholder);
+    if (i >= 0) state.messages.splice(i, 1);
+  };
+
   try {
     const result = await markAnswer(
       { question, answer, subject: corpusCode(state.subject) },
       { signal: state.controller.signal },
     );
     Object.assign(placeholder, { kind: "mark", result });
+    paint();
+    return;
   } catch (e) {
     const message = explainError(e);
-    if (message) placeholder.error = message;
-    // No mark scheme, or no matching question: answering normally is more
-    // useful than a dead end.
+    // Cancelled by the student: take the empty bubble away and say nothing.
+    if (!message) {
+      drop();
+      paint();
+      return;
+    }
+    // No mark scheme, or no matching question: answering the message as a
+    // question is more useful than a dead end. The placeholder becomes a
+    // one-line note rather than an empty bubble hanging above the answer.
     if (e?.code === "not_found" || e?.code === "no_markscheme") {
-      placeholder.error = `${message} Answering it as a question instead.`;
+      drop();
+      state.messages.push({
+        role: "model",
+        kind: "note",
+        content: `${message} Answering it as a question instead.`,
+      });
       paint();
       await runAsk(text);
       return;
     }
+    placeholder.error = message;
+    paint();
   }
-  paint();
 }
 
-async function runAsk(text) {
+async function runAsk(text, mode = "ask") {
   const reply = { role: "model", content: "", citations: [] };
   state.messages.push(reply);
   paint();
 
+  // Mark cards and the app's own notes are not conversation: sending them back
+  // as model turns teaches the model to imitate them.
   const history = state.messages
     .slice(0, -2)
-    .filter((m) => m.content && m.kind !== "mark")
+    .filter((m) => m.content && m.kind !== "mark" && m.kind !== "note")
     .slice(-6)
     .map((m) => ({ role: m.role, text: m.content }));
 
@@ -407,7 +443,7 @@ async function runAsk(text) {
 
   try {
     await ask(
-      { question: text, subject: corpusCode(state.subject), mode: "ask", threadId: state.threadId, history },
+      { question: text, subject: corpusCode(state.subject), mode, threadId: state.threadId, history },
       {
         onCitations(citations, grounded) {
           reply.citations = citations;
@@ -443,6 +479,7 @@ function setBusy(busy) {
   const stop = root?.querySelector("#chatStop");
   if (send) send.hidden = busy;
   if (stop) stop.hidden = !busy;
+  root?.querySelectorAll("[data-history-page], #newChat, #historyBtn").forEach((button) => { button.disabled = busy; });
 }
 
 /* ---------------------------------------------------------------- sources -- */
@@ -458,7 +495,7 @@ async function showSource(chunkId) {
         const c = await getChunk(chunkId);
         if (!c) throw new Error("That source is no longer available.");
         dialog.querySelector("#modalTitle").textContent =
-          `${c.paper_code ?? ""}${c.question_no ? ` · Q${c.question_no}` : ""}`;
+          paperLabel(c);
         target.innerHTML = `
           <div class="source-doc">
             <p class="source-ref">
@@ -533,16 +570,34 @@ async function openHistory() {
 
 async function resume(id, threads) {
   try {
-    const messages = await loadMessages(id);
     const meta = threads.find((t) => t.id === id);
     state.threadId = id;
     state.subject = meta?.subject_code ?? state.subject;
-    state.messages = messages.map((m) => ({
-      role: m.role, content: m.content, citations: m.citations ?? [],
-    }));
+    await loadHistoryPage(0);
     root.querySelector("#chatSubject").value = state.subject ?? "";
     paint();
   } catch (e) {
     toast(e.message, "error");
   }
+}
+
+async function loadHistoryPage(page) {
+  const threadId = state.threadId;
+  const { rows, hasMore } = await loadMessages(threadId, page);
+  if (state.threadId !== threadId) return;
+  state.historyPage = page;
+  state.hasOlder = hasMore;
+  state.messages = rows.map((m) => ({ role: m.role, content: m.content, citations: m.citations ?? [] }));
+  paint();
+}
+
+/**
+ * Forget the conversation. Called on sign-in and sign-out: this module state
+ * outlives a session, and the next student on a shared computer would otherwise
+ * open the assistant onto the previous student's chat, and a follow-up would
+ * post the old thread's id.
+ */
+export function invalidate() {
+  state.controller?.abort();
+  state = { threadId: null, subject: null, messages: [], historyPage: 0, hasOlder: false, busy: false, controller: null };
 }

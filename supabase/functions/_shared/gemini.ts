@@ -72,8 +72,14 @@ async function callGemini(
   { retries = 4, stream = false }: { retries?: number; stream?: boolean } = {},
 ): Promise<Response> {
   let lastErr = "";
+  const exhausted = new Set<string>();
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const key = nextKey();
+    let key: string | undefined;
+    for (let i = 0; i < KEYS.length; i++) {
+      const candidate = nextKey();
+      if (!exhausted.has(candidate)) { key = candidate; break; }
+    }
+    if (!key) throw new QuotaExhausted(`${path.split("/")[1]?.split(":")[0] ?? "model"} is out of quota for every configured key.`);
     const url = `${API}/${path}${stream ? "?alt=sse&" : "?"}key=${key}`;
     let res: Response;
     try {
@@ -90,12 +96,12 @@ async function callGemini(
 
     if (res.ok) return res;
 
-    // 429 means this model's quota is spent: for the day, not for the next
-    // few seconds. Backing off cannot fix it and only delays the fallback to a
-    // model that would have answered immediately, so give up on this one at
-    // once. 503/500 are genuine transients and do deserve a retry.
+    // Try remaining keys once, without sleeping on an exhausted quota.
+    // 503/500 are genuine transients and do deserve a retry.
     if (res.status === 429) {
-      throw new QuotaExhausted(`${path.split("/")[1]?.split(":")[0] ?? "model"} is out of quota.`);
+      exhausted.add(key);
+      attempt--;
+      continue;
     }
     if (res.status === 503 || res.status === 500) {
       lastErr = `${res.status} ${await res.text().catch(() => "")}`.slice(0, 300);
@@ -141,7 +147,15 @@ export async function embedBatch(
       })),
     });
     const data = await res.json();
-    for (const e of data.embeddings ?? []) out.push(normalise(e.values as number[]));
+    if (!Array.isArray(data.embeddings) || data.embeddings.length !== slice.length) {
+      throw new Error("Incomplete embedding response.");
+    }
+    for (const e of data.embeddings) {
+      if (!Array.isArray(e.values) || e.values.length !== EMBED_DIMS ||
+          !e.values.every((v: unknown) => typeof v === "number" && Number.isFinite(v)) ||
+          !e.values.some((v: number) => v !== 0)) throw new Error("Invalid embedding vector.");
+      out.push(normalise(e.values as number[]));
+    }
   }
   return out;
 }
@@ -245,45 +259,72 @@ export function parseJSON<T>(raw: string): T {
   }
 }
 
-/** Streaming generate, yielding text deltas as they arrive. */
+/**
+ * Streaming generate, yielding text deltas as they arrive.
+ *
+ * Walks the same model chain `generate()` does, not just the first one that
+ * opens a connection. A model can open a stream successfully and still finish
+ * having yielded nothing (a safety block, or an empty candidate) without ever
+ * returning a non-2xx status, so a stream that ends with zero text falls
+ * through to the next model instead of being mistaken for a real, empty
+ * answer. Falling through is safe here specifically because nothing has been
+ * yielded to the caller yet: the moment a chunk carries text it is yielded
+ * immediately, so first-token latency is unaffected, and switching models
+ * only ever happens before the caller has seen anything.
+ */
 export async function* generateStream(
   prompt: string,
   o: GenerateOptions = {},
 ): AsyncGenerator<string> {
-  // Streaming walks the same chain: the first model that opens a stream wins.
-  let res: Response | null = null;
   let lastError: Error | null = null;
+
   for (const model of CHAT_MODELS) {
+    let res: Response;
     try {
       res = await callGemini(`models/${model}:streamGenerateContent`, buildBody(prompt, o), { stream: true });
-      break;
     } catch (e) {
       lastError = e instanceof Error ? e : new Error(String(e));
+      continue;
     }
-  }
-  if (!res) throw lastError ?? new Error("No Gemini model produced a stream.");
-  const reader = res.body!.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data:")) continue;
-      const payload = line.slice(5).trim();
-      if (!payload || payload === "[DONE]") continue;
-      try {
-        const chunk = JSON.parse(payload);
-        const parts = chunk?.candidates?.[0]?.content?.parts ?? [];
-        for (const p of parts) if (p.text) yield p.text as string;
-      } catch {
-        /* partial frame. The next read completes it */
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let yielded = false;
+    let finishReason: string | undefined;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        try {
+          const chunk = JSON.parse(payload);
+          const candidate = chunk?.candidates?.[0];
+          finishReason = candidate?.finishReason ?? chunk?.promptFeedback?.blockReason ?? finishReason;
+          const parts = candidate?.content?.parts ?? [];
+          for (const p of parts) {
+            if (p.text) {
+              yielded = true;
+              yield p.text as string;
+            }
+          }
+        } catch {
+          /* partial frame. The next read completes it */
+        }
       }
     }
+
+    if (yielded) return;   // this model answered; the chain stops here
+    lastError = new Error(`${model} returned no text (${finishReason ?? "unknown"}).`);
   }
+
+  throw lastError ?? new Error("No Gemini model produced a response.");
 }
 
 function truncate(s: string, n: number): string {

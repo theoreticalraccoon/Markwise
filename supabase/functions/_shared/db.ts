@@ -33,6 +33,8 @@ export interface Caller {
   id: string;
   email: string | null;
   db: SupabaseClient;
+  /** Allowance reservations made by THIS request, by route. See quota.ts. */
+  claims: Record<string, string | null>;
 }
 
 /** Resolve the signed-in user, or throw. Every AI route requires one. */
@@ -40,5 +42,5 @@ export async function requireUser(req: Request): Promise<Caller> {
   const db = userClient(req);
   const { data, error } = await db.auth.getUser();
   if (error || !data?.user) throw new Error("Not signed in.");
-  return { id: data.user.id, email: data.user.email ?? null, db };
+  return { id: data.user.id, email: data.user.email ?? null, db, claims: {} };
 }

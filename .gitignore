@@ -5,16 +5,38 @@
 supabase/.temp/
 supabase/.branches/
 
+# Local Supabase pointing, loaded by index.html if present
+config.local.js
+
 # OS / editor noise
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
+# Local agent/session notes and reports
+AGENTS.md
+.gstack/
+docs/PLAN.md
+docs/STATUS.md
+docs/COMPLETION.md
+
 # Ingestion
 ingest/node_modules/
 ingest/pdfs/
 node_modules/
+dist/
+.vercel/
 
 # keep the ingestion template
 !ingest/.env.example
+
+# Local copy of Pearson's public catalogue, used by the loader
+ingest/.pearson-catalogue.json
+
+# One-off local corpus maintenance helpers
+ingest/audit-*.mjs
+ingest/discover-pearson.mjs
+ingest/recon-pearson.mjs
+ingest/force-reingest.sh
+ingest/run-subjects.sh

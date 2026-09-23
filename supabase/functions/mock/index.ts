@@ -18,7 +18,7 @@
 
 import { preflight, fail, json } from "../_shared/http.ts";
 import { requireUser, adminClient } from "../_shared/db.ts";
-import { claim, QuotaExceeded } from "../_shared/quota.ts";
+import { claim, release, QuotaExceeded } from "../_shared/quota.ts";
 import { generateJSON } from "../_shared/gemini.ts";
 import { label, type Chunk } from "../_shared/retrieve.ts";
 import { MOCK_SYSTEM } from "../_shared/prompts.ts";
@@ -30,6 +30,10 @@ interface Body {
   weakFirst?: boolean;
   durationMin?: number;
   title?: string;
+  /** "H" or "F": draw only from that tier's papers. */
+  tier?: string;
+  /** Draw only from one paper, e.g. "1H". */
+  paperRef?: string;
 }
 
 /** The model orders and titles; it does not author. */
@@ -78,7 +82,7 @@ Deno.serve(async (req) => {
   const targetMarks = clamp(body.marks ?? 40, 10, 120);
 
   try {
-    await claim(user.id, "mock");
+    await claim(user, "mock");
   } catch (e) {
     if (e instanceof QuotaExceeded) return fail(req, e.message, 429);
     throw e;
@@ -95,35 +99,46 @@ Deno.serve(async (req) => {
   }
 
   // ---- pull a candidate pool ---------------------------------------------
-  // Over-sample: some candidates will be dropped to hit the mark target.
-  const { data: poolData, error: poolError } = await admin.rpc("sample_questions", {
-    p_subject: subject,
-    p_topics: topics.length ? topics : null,
-    p_limit: 40,
-    p_min_marks: 1,
-    p_max_marks: 20,
-  });
-  if (poolError) return fail(req, `Could not sample questions: ${poolError.message}`, 502);
+  // Over-sample: some candidates will be dropped to hit the mark target. A
+  // hundred-mark paper needs a bigger pool than a ten-mark quiz.
+  const tier = body.tier === "H" || body.tier === "F" ? body.tier : null;
+  const paperRef = body.paperRef?.trim() || null;
+  const limit = Math.min(120, Math.max(40, targetMarks * 2));
 
-  let pool = (poolData ?? []) as Chunk[];
-
-  // Asking for weak topics only works once there is a corpus for them; fall
-  // back to the whole subject rather than returning an empty paper.
-  if (pool.length < 4 && topics.length) {
-    const { data: wide } = await admin.rpc("sample_questions", {
+  const sample = async (topicList: string[] | null, textOnly: boolean): Promise<Chunk[]> => {
+    const { data, error } = await admin.rpc("sample_questions", {
       p_subject: subject,
-      p_topics: null,
-      p_limit: 40,
+      p_topics: topicList,
+      p_limit: limit,
       p_min_marks: 1,
       p_max_marks: 20,
+      p_tier: tier,
+      p_paper_ref: paperRef,
+      // Questions that lean on a figure are unanswerable as plain text, so they
+      // are left out unless the subject has too little else to build a paper.
+      p_no_figure: textOnly,
     });
-    pool = (wide ?? []) as Chunk[];
+    if (error) throw new Error(`Could not sample questions: ${error.message}`);
+    return (data ?? []) as Chunk[];
+  };
+
+  let pool: Chunk[];
+  try {
+    pool = await sample(topics.length ? topics : null, true);
+    // Asking for weak topics only works once there is a corpus for them; widen
+    // rather than returning an empty paper.
+    if (pool.length < 4 && topics.length) pool = await sample(null, true);
+    if (pool.length < 4) pool = await sample(null, false);
+  } catch (e) {
+    await release(user, "mock");
+    return fail(req, e instanceof Error ? e.message : "Could not sample questions.", 502);
   }
 
   if (pool.length === 0) {
+    await release(user, "mock");
     return json(req, {
       error: "empty_corpus",
-      message: `No questions for ${subject} have been ingested yet. Run the ingestion pipeline for this subject first.`,
+      message: `There are no questions with a stored mark scheme for this subject yet, so a paper cannot be built. Add some past papers first.`,
     }, 409);
   }
 
@@ -181,6 +196,8 @@ Deno.serve(async (req) => {
     marks: c.marks ?? 0,
     paperRef: label(c),
     paperCode: c.paper_code,
+    // The last part of the paper code is the paper's reference ("E-4PH1_s24_qp_1P" -> "1P").
+    paperReference: paperRefOf(c.paper_code),
     paperNo: c.paper_no,
     questionNo: c.question_no,
     topic: c.topic,
@@ -188,6 +205,12 @@ Deno.serve(async (req) => {
   }));
 
   const durationMin = body.durationMin ?? suggestDuration(totalMarks);
+  const instructions = plan.instructions || defaultRubric(totalMarks, durationMin);
+
+  // Which paper number to predict a grade against. A mock draws from several
+  // papers, so the modal paper number is the honest answer: the boundaries of
+  // the paper most of these marks actually came from.
+  const paperNo = modalPaperNo(ordered);
 
   // ---- save ---------------------------------------------------------------
   const { data: saved, error: saveError } = await user.db.from("mocks").insert({
@@ -195,24 +218,55 @@ Deno.serve(async (req) => {
     title: plan.title || `${subject} mock`,
     spec: { topics, targetMarks, weakFirst: !!body.weakFirst },
     questions,
+    instructions,
+    paper_no: paperNo,
     total_marks: totalMarks,
     duration_min: durationMin,
     status: "ready",
   }).select("id").single();
 
-  if (saveError) return fail(req, `Could not save the mock: ${saveError.message}`, 500);
+  if (saveError) {
+    await release(user, "mock");
+    return fail(req, `Could not save the mock: ${saveError.message}`, 500);
+  }
 
   return json(req, {
     id: saved.id,
     title: plan.title,
-    instructions: plan.instructions || defaultRubric(totalMarks, durationMin),
+    instructions,
     subject,
     totalMarks,
     durationMin,
+    paperNo,
     topics,
     questions,
   });
 });
+
+/**
+ * The paper number most of this mock's marks came from.
+ *
+ * Grade boundaries are published per paper, so predicting a grade needs one.
+ * Taking question 1's paper number, as the client used to, meant a 40-mark
+ * paper built mostly from Paper 4 questions could be graded against Paper 2's
+ * boundaries because the first short question happened to come from there.
+ */
+function modalPaperNo(chunks: Chunk[]): number | null {
+  const weight = new Map<number, number>();
+  for (const c of chunks) {
+    if (c.paper_no == null) continue;
+    weight.set(c.paper_no, (weight.get(c.paper_no) ?? 0) + (c.marks ?? 0));
+  }
+  let best: number | null = null;
+  let bestWeight = -1;
+  for (const [no, w] of weight) {
+    if (w > bestWeight) {
+      bestWeight = w;
+      best = no;
+    }
+  }
+  return best;
+}
 
 /* ---------------------------------------------------------------- helpers -- */
 
@@ -230,7 +284,7 @@ function clamp(n: number, lo: number, hi: number): number {
  */
 function dependsOnSibling(c: Chunk): boolean {
   const opening = c.content.replace(/\s+/g, " ").trim().slice(0, 60).toLowerCase();
-  return /^(hence|use (your|this) answer|using (your|this|part)|from your answer|write down another|repeat (this|the))/
+  return /^(hence|use (your|this) answer|using (your|this|part)|from your answer|write down another|repeat (this|the)|use the (graph|diagram|figure|table|result)|from (part|question)|in part)/
     .test(opening);
 }
 
@@ -288,7 +342,7 @@ function fitToMarks(pool: Chunk[], target: number): Chunk[] {
   return picked;
 }
 
-/** Cambridge papers run at roughly 1 mark a minute plus reading time. */
+/** Edexcel papers run at roughly 1.1 minutes a mark (100 marks in 2 hours, 110 in 2). */
 function suggestDuration(marks: number): number {
   return Math.max(15, Math.round(marks * 1.1));
 }
@@ -296,7 +350,13 @@ function suggestDuration(marks: number): number {
 function defaultRubric(marks: number, minutes: number): string {
   return [
     `Answer all questions.`,
-    `The number of marks is given in brackets [ ] at the end of each question.`,
+    `The marks for each question are shown in brackets, for example (3).`,
     `Time allowed: ${minutes} minutes. Total: ${marks} marks.`,
   ].join("\n");
+}
+
+/** "E-4PH1_s24_qp_1P" -> "1P". Null when the code has no reference part. */
+function paperRefOf(code: string | null): string | null {
+  const parts = (code ?? "").split("_");
+  return parts.length === 4 ? parts[3].toUpperCase() : null;
 }

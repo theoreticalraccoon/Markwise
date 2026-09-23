@@ -2,10 +2,9 @@
  * Gemini client for the ingestion pipeline.
  *
  * Differs from the edge-function client in two ways that matter at ingestion
- * scale: keys are rotated round-robin across a pool (the free tier is
- * per-key, so N keys multiply throughput linearly), and 429s are treated as
- * flow control rather than errors. The pipeline slows down instead of
- * failing, because a run that dies 80% through a subject is expensive to redo.
+ * scale: keys are rotated across a pool, and quota exhaustion tries each
+ * configured key once before failing. Keys may share a project quota; waiting
+ * on every exhausted batch must not turn a resumable run into an hours-long hang.
  */
 
 import { GEMINI_KEYS, CHAT_MODELS, EMBED_MODEL, EMBED_DIMS } from "./config.js";
@@ -14,24 +13,16 @@ const API = "https://generativelanguage.googleapis.com/v1beta";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let cursor = 0;
-const cooldown = new Map(); // key -> timestamp it becomes usable again
-
-async function pickKey() {
-  for (let spin = 0; spin < GEMINI_KEYS.length * 4; spin++) {
-    const key = GEMINI_KEYS[cursor++ % GEMINI_KEYS.length];
-    const until = cooldown.get(key) ?? 0;
-    if (Date.now() >= until) return key;
-  }
-  // Every key is cooling down: wait for the soonest one.
-  const soonest = Math.min(...GEMINI_KEYS.map((k) => cooldown.get(k) ?? 0));
-  await sleep(Math.max(500, soonest - Date.now()));
-  return pickKey();
-}
-
 async function call(path, body, { retries = 6 } = {}) {
   let last = "";
+  const exhausted = new Set();
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const key = await pickKey();
+    let key;
+    for (let i = 0; i < GEMINI_KEYS.length; i++) {
+      const candidate = GEMINI_KEYS[cursor++ % GEMINI_KEYS.length];
+      if (!exhausted.has(candidate)) { key = candidate; break; }
+    }
+    if (!key) throw new Error("Gemini quota exhausted for every configured key.");
     let res;
     try {
       res = await fetch(`${API}/${path}?key=${key}`, {
@@ -48,9 +39,9 @@ async function call(path, body, { retries = 6 } = {}) {
     if (res.ok) return res.json();
 
     if (res.status === 429) {
-      // Park this key for a minute and move on; other keys keep working.
-      cooldown.set(key, Date.now() + 62_000);
+      exhausted.add(key);
       last = "429 rate limit";
+      attempt--; // A different key does not consume the transient retry budget.
       continue;
     }
     if (res.status === 503 || res.status === 500) {
@@ -79,7 +70,43 @@ export async function embedBatch(texts, taskType = "RETRIEVAL_DOCUMENT") {
       outputDimensionality: EMBED_DIMS,
     })),
   });
-  return (data.embeddings ?? []).map((e) => normalise(e.values));
+  if (!Array.isArray(data.embeddings) || data.embeddings.length !== texts.length) {
+    throw new Error("Incomplete embedding response.");
+  }
+  return data.embeddings.map((e) => {
+    if (!Array.isArray(e.values) || e.values.length !== EMBED_DIMS ||
+        !e.values.every((v) => typeof v === "number" && Number.isFinite(v)) ||
+        !e.values.some((v) => v !== 0)) throw new Error("Invalid embedding vector.");
+    return normalise(e.values);
+  });
+}
+
+/**
+ * Embed many texts in batches, one failed batch never failing the run: a
+ * batch that errors (rate limit, transient 5xx) lands its chunks as `null`
+ * rather than losing everything embedded so far.
+ *
+ * `noEmbed` skips straight to that same all-null result without calling
+ * Gemini at all. A quota that is out for the day fails every batch through
+ * the same several minutes of retry inside `call()` first; ingesting a whole
+ * subject that way spends hours proving what one failed call already showed.
+ * The caller decides when that's worth it (`ingest.js papers --no-embed`)
+ * and leaves the chunks for a later `reembed` pass instead.
+ */
+export async function embedAll(texts, { noEmbed = false, batchSize = 96, onWarn = () => {} } = {}) {
+  if (noEmbed) return texts.map(() => null);
+
+  const out = [];
+  for (let i = 0; i < texts.length; i += batchSize) {
+    const slice = texts.slice(i, i + batchSize);
+    try {
+      out.push(...(await embedBatch(slice)));
+    } catch (e) {
+      onWarn(`embedding batch failed (${e.message}). Those chunks land unembedded; run 'reembed' later`);
+      out.push(...slice.map(() => null));
+    }
+  }
+  return out;
 }
 
 /**

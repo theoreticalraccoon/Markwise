@@ -146,69 +146,213 @@ Rules:
 - Ignore assessment logistics, grade descriptors, and appendices.
 `.trim();
 
-export async function llmParseSyllabus(pages, subjectName) {
-  const text = pages.map((p) => p.text).join("\n\n").slice(0, 90000);
-  const { sections } = await generateJSON(
-    `SUBJECT: ${subjectName}\n\nSYLLABUS:\n${text}`,
-    SY_SCHEMA,
-    { system: SY_SYSTEM, maxOutputTokens: 8192 },
-  );
-  return (sections ?? []).filter((s) => s.content?.length > 40);
+/**
+ * The Pearson science layout: topic, lettered sub-topic, numbered statements.
+ *
+ *   1 Forces and motion
+ *   (a) Units
+ *   Students should:
+ *   1.1 use the following units: kilogram (kg), metre (m) ...
+ *   1.2P use the following units: newton metre (Nm) ...
+ *   (b) Movement and position
+ *   Students should:
+ *   1.3 plot and explain distance-time graphs
+ *
+ * Maths puts its content under "Students should be taught to", which the parser
+ * above reads. The sciences, and most other International GCSE subjects, do not,
+ * and the structural parser found nothing in them ("thin") and fell back to the
+ * model, which overflowed its output limit on a 60-page specification.
+ *
+ * One chunk per lettered sub-topic, keeping its statements together: a single
+ * statement ("1.4 know the relationship between average speed, distance and
+ * time") is too small to retrieve on its own and loses what it is part of.
+ *
+ * @returns {{ref,topic,content}[]}
+ */
+export function parseSyllabusStatements(pages) {
+  const lines = pages.flatMap((p) => cleanLines(p.text).map((l) => l.trim()));
+
+  const TOPIC_LINE = /^(\d{1,2})\s+([A-Z][A-Za-z][A-Za-z ,&'’\-()/]{3,70})$/;
+  const SUBTOPIC = /^\(([a-z])\)\s+(\S.{1,80})$/;
+  const STATEMENT = /^(\d{1,2}\.\d{1,2}[A-Za-z]?)\s+(\S.*)$/;
+  const STOP = /^(assessment (information|overview)|command words|glossary|appendix|grade descriptors?|the sample assessment)/i;
+
+  // The content begins at the first "Students should:" (a few lines earlier, at
+  // the topic heading) and ends at the next section of the specification.
+  const first = lines.findIndex((l) => /^students should:?$/i.test(l));
+  if (first < 0) return [];
+
+  const sections = [];
+  let topicNo = null;
+  let topic = null;
+  let current = null;
+
+  const flush = () => {
+    if (current && current.statements.length) {
+      const body = current.statements.join("\n").trim();
+      if (body) {
+        sections.push({
+          ref: `${topicNo}(${current.letter})`,
+          topic,
+          content: `${topic}: ${topicNo}(${current.letter}) ${current.title}\nStudents should:\n${body}`,
+        });
+      }
+    }
+    current = null;
+  };
+
+  for (let i = Math.max(0, first - 12); i < lines.length; i++) {
+    const line = lines[i];
+    if (i > first && STOP.test(line)) break;
+    if (/^specification\b.*(issue|pearson)/i.test(line) || /^students should:?$/i.test(line)) continue;
+
+    // A topic heading is followed by its list of sub-topics.
+    const t = line.match(TOPIC_LINE);
+    if (t && /^(the following|\(a\))/i.test(lines[i + 1] ?? "")) {
+      flush();
+      topicNo = t[1];
+      topic = t[2].trim();
+      continue;
+    }
+
+    // A sub-topic HEADING is the one followed by "Students should:". The same
+    // "(a) Units" also appears in the topic's list of sub-topics, and that one
+    // must not open a section.
+    const s = line.match(SUBTOPIC);
+    if (s && topic && /^students should:?$/i.test(lines[i + 1] ?? "")) {
+      flush();
+      current = { letter: s[1], title: s[2].trim(), statements: [] };
+      continue;
+    }
+
+    if (!current) continue;
+    if (STATEMENT.test(line)) current.statements.push(line);
+    // Continuation lines (a wrapped statement, or a formula) stay with the last statement.
+    else if (current.statements.length) current.statements.push(line);
+  }
+  flush();
+
+  return sections.filter((s) => s.content.length > 60);
 }
 
-/* -------------------------------------------------------- grade thresholds -- */
-
 /**
- * Grade threshold tables are small and rigidly laid out:
+ * Pearson's ICT-style two-column content table.
  *
- *   Component 42   A*  B  C ...
- *                  55  48 41 ...
- *
- * Parsed deterministically. There is no ambiguity worth spending a model call
- * on, and a wrong grade boundary silently corrupts every predicted grade.
+ * The extracted text interleaves the left-hand subsection description with
+ * the right-hand learning outcomes, but its identifiers remain reliable:
+ * `1.2` opens a subsection and `1.2.1` opens an assessable statement. Keep the
+ * extracted wording verbatim and use the `Topic N:` heading as the controlled
+ * topic vocabulary.
  */
-const GRADES = ["A*", "A", "B", "C", "D", "E", "F", "G"];
+export function parseSyllabusTable(pages) {
+  const lines = pages.flatMap((p) => cleanLines(p.text).map((line) => line.trim()));
+  const TOPIC_HEADING = /^Topic\s+(\d{1,2})\s*:\s*(\S.*)$/i;
+  const SUBSECTION_ROW = /^(\d{1,2}\.\d{1,2})\s+(\S.*)$/;
+  const STATEMENT = /^(\d{1,2}\.\d{1,2}\.\d{1,2}[A-Za-z]?)\s+(\S.*)$/;
+  const TABLE_HEADER = /^\d{1,2}\s+.+\s+Students should(?: be able to)?:$/i;
+  const SPEC_FOOTER = /^(?:Pearson Edexcel International GCSE|Specification\s+[–-]\s+Issue\b)/i;
 
-export function parseGradeThresholds(pages, meta) {
-  const rows = [];
-  const lines = pages.flatMap((p) => cleanLines(p.text));
+  const sections = [];
+  let topicNo = null;
+  let topic = null;
+  let current = null;
+  let started = false;
 
-  let component = null;
-  let maxMark = null;
-
-  for (const line of lines) {
-    const comp = line.match(/component\s+(\d{2})/i);
-    if (comp) {
-      component = Number(comp[1][0]); // '42' → paper 4
-      continue;
+  const flush = () => {
+    if (!current || !current.lines.some((line) => STATEMENT.test(line))) {
+      current = null;
+      return;
     }
-    const max = line.match(/maximum (?:raw )?mark\D{0,12}(\d{1,3})/i);
-    if (max) {
-      maxMark = Number(max[1]);
-      continue;
-    }
-    if (!component) continue;
-
-    // A row of 6-8 descending numbers is the threshold row.
-    const nums = line.match(/\b\d{1,3}\b/g);
-    if (!nums || nums.length < 5 || nums.length > 9) continue;
-    const values = nums.map(Number);
-    const descending = values.every((v, i) => i === 0 || v <= values[i - 1]);
-    if (!descending) continue;
-
-    values.forEach((v, i) => {
-      if (i >= GRADES.length) return;
-      rows.push({
-        subject_code: meta.subjectCode,
-        year: meta.year,
-        session: meta.session,
-        paper_no: component,
-        grade: GRADES[i],
-        min_marks: v,
-        max_marks: maxMark,
-      });
+    const body = current.lines.join("\n").trim();
+    sections.push({
+      ref: current.ref,
+      topic: current.topic,
+      content: `${current.topic}: ${current.ref}${current.title ? ` ${current.title}` : ""}\n${body}`,
     });
-    component = null;
+    current = null;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const heading = line.match(TOPIC_HEADING);
+    if (heading) {
+      flush();
+      topicNo = heading[1];
+      topic = heading[2].trim();
+      const continuation = lines[i + 1] ?? "";
+      const afterContinuation = lines[i + 2] ?? "";
+      if (continuation.length <= 60 && /^[A-Z][A-Za-z &-]*$/.test(continuation)
+          && (/^Students need\b/i.test(afterContinuation) || new RegExp(`^${topicNo}\\s+`).test(afterContinuation))) {
+        topic += ` ${continuation}`;
+        i++;
+      }
+      started = true;
+      continue;
+    }
+    if (!started) continue;
+    if (CONTENT_END.test(line)) {
+      // The contents page lists every `Topic N:` heading before its own
+      // "Assessment information" entry. Do not let that index occurrence
+      // terminate parsing before we have seen a real numbered table row.
+      if (!current && sections.length === 0) {
+        topicNo = null;
+        topic = null;
+        started = false;
+        continue;
+      }
+      flush();
+      break;
+    }
+    if (TABLE_HEADER.test(line)) continue;
+    if (SPEC_FOOTER.test(line)) continue;
+
+    const subsection = line.match(SUBSECTION_ROW);
+    if (subsection && topic && subsection[1].split(".")[0] === topicNo) {
+      flush();
+      const ref = subsection[1];
+      const rest = subsection[2];
+      const statementStart = rest.search(/(?:^|\s)\d{1,2}\.\d{1,2}\.\d{1,2}[A-Za-z]?\s+/);
+      const title = statementStart >= 0 ? rest.slice(0, statementStart).trim() : rest.trim();
+      const firstStatement = statementStart >= 0 ? rest.slice(statementStart).trim() : "";
+      current = { ref, topic, title, lines: firstStatement ? [firstStatement] : [] };
+      continue;
+    }
+
+    if (current) current.lines.push(line);
   }
-  return rows;
+  flush();
+
+  return sections.filter((section) => section.content.length > 60);
+}
+
+/** "English Language A" ~ "english language a": for rejecting a topic that is
+ *  just the subject's own name back again (see llmParseSyllabus below). */
+const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+export async function llmParseSyllabus(pages, subjectName) {
+  // A whole specification in one call overflows the model's output limit, so
+  // read it in page batches and join what comes back.
+  const BATCH = 8;
+  const subjectFold = fold(subjectName);
+  const out = [];
+  for (let i = 0; i < pages.length; i += BATCH) {
+    const text = pages.slice(i, i + BATCH).map((p) => p.text).join("\n\n").slice(0, 30000);
+    if (text.trim().length < 400) continue;
+    const { sections } = await generateJSON(
+      `SUBJECT: ${subjectName}\n\nSYLLABUS (pages ${i + 1}-${Math.min(i + BATCH, pages.length)}):\n${text}`,
+      SY_SCHEMA,
+      { system: SY_SYSTEM, maxOutputTokens: 8192 },
+    );
+    out.push(...(sections ?? []).filter((s) => {
+      if (!(s.content?.length > 40)) return false;
+      // A topic that is just the subject's own name back again isn't a
+      // vocabulary term: nothing can be classified as "that", specifically,
+      // over anything else in the subject. Observed on English Language A,
+      // from a paragraph about the qualification's overall structure rather
+      // than its content.
+      if (fold(s.topic) === subjectFold) return false;
+      return true;
+    }));
+  }
+  return out;
 }

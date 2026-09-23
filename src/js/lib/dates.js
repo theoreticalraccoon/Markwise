@@ -41,11 +41,6 @@ export function dueLabel(value) {
   return { text: parseISO(value).toLocaleDateString(undefined, { day: "numeric", month: "short" }), cls: "" };
 }
 
-export function formatDate(value, opts = { day: "numeric", month: "short" }) {
-  const d = parseISO(value);
-  return d ? d.toLocaleDateString(undefined, opts) : "";
-}
-
 export function formatDateTime(value) {
   if (!value) return "";
   return new Date(value).toLocaleString(undefined, {
@@ -95,4 +90,35 @@ export function minutesToHuman(mins) {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+/**
+ * When an exam series starts.
+ *
+ * `profiles.exam_session` is free text ("Jun 2027", "May/June 2027", "Nov
+ * 2026"), because that is how a student says it. Pearson Edexcel International
+ * GCSE sits January, May/June and October/November, and the papers begin in
+ * the first weeks of the series' first month: early January, early May, early
+ * October. A student who writes "June" means the summer series, which STARTS in
+ * May, so it is anchored there. The old anchor was the first of the month
+ * named, which told a June candidate the exams were a month further away than
+ * they are, and once May began said they had "started or passed" while the
+ * papers were still ahead of them.
+ *
+ * Only the first month of a range is read, so "May/June" is May and "Oct/Nov"
+ * is October. Returns null for anything it cannot read, and the caller shows
+ * nothing rather than guessing.
+ */
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+export function examStart(session) {
+  const text = String(session ?? "");
+  const year = text.match(/\b(20\d\d)\b/)?.[1];
+  const month = text.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*/i)?.[1];
+  if (!year || !month) return null;
+
+  const index = MONTHS.indexOf(month.toLowerCase());
+  // June is the tail of the summer series and November of the autumn one.
+  const anchor = index === 5 ? 4 : index === 10 ? 9 : index;
+  return new Date(Number(year), anchor, 1);
 }

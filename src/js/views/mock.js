@@ -13,27 +13,36 @@
 
 import { esc, escLines, on } from "../ui/dom.js";
 import { toast, emptyState, spinner, confirmModal, skeleton } from "../ui/feedback.js";
-import { groundedSubjects, subjectName, corpusCode } from "../store.js";
-import { loadMocks, getMock, updateMock, deleteMock, predictGrade } from "../api/data.js";
-import { generateMock, markAnswer, explainError } from "../api/ai.js";
+import { groundedSubjects, subjectName, corpusCode, store } from "../store.js";
+import { loadMocks, getMock, updateMock, deleteMock, listPapers } from "../api/data.js";
+import { generateMock, markMock, explainError } from "../api/ai.js";
 import { formatDateTime, minutesToHuman } from "../lib/dates.js";
 import { navigate } from "../router.js";
+import { markPill } from "../lib/exam.js";
 
 let root = null;
 let timer = null;
+let removeConnectivityListeners = null;
 
 /** One paper's worth of practice: long enough to be useful, short enough to sit. */
 const DEFAULT_MARKS = 40;
 
-const draftKey = (id) => `markwise-mock-${id}`;
+const draftKey = (id) => `markwise-mock-${store.user?.id}-${id}`;
 
 export async function render(container, { segments = [] } = {}) {
   root = container;
   stopTimer();
+  removeConnectivityListeners?.();
+  removeConnectivityListeners = null;
 
-  if (segments.length === 0) return renderList();
-  if (segments[1] === "marked") return renderMarked(segments[0]);
-  return renderSit(segments[0]);
+  if (segments.length === 0) await renderList();
+  else if (segments[1] === "marked") await renderMarked(segments[0]);
+  else await renderSit(segments[0]);
+
+  // Leaving the paper must stop its clock. The timer used to keep ticking on a
+  // detached element until the time ran out, because only starting the NEXT
+  // mock ever cleared it.
+  return () => { stopTimer(); removeConnectivityListeners?.(); };
 }
 
 /* ------------------------------------------------------------------ list -- */
@@ -142,6 +151,14 @@ function paintGenerator() {
             ${grounded.map((s) => `<option value="${esc(s.code)}">${esc(s.name)}</option>`).join("")}
           </select>
         </label>
+        <label class="field" id="genTierWrap" hidden>
+          <span>Tier</span>
+          <select id="genTier">
+            <option value="">Either</option>
+            <option value="H">Higher</option>
+            <option value="F">Foundation</option>
+          </select>
+        </label>
         <button class="btn-primary big" id="genBtn">Make a paper</button>
       </div>
       <p class="gen-note muted" id="genNote">
@@ -151,6 +168,21 @@ function paintGenerator() {
     </section>`;
 
   const subjectSel = slot.querySelector("#genSubject");
+
+  // Only subjects with Foundation and Higher papers (Mathematics A) have a tier
+  // to choose. Everything else sits one paper and shows no picker.
+  const tierWrap = slot.querySelector("#genTierWrap");
+  const showTier = async () => {
+    try {
+      const papers = await listPapers(corpusCode(subjectSel.value));
+      tierWrap.hidden = !papers.some((p) => p.tier);
+    } catch {
+      tierWrap.hidden = true;
+    }
+    if (tierWrap.hidden) slot.querySelector("#genTier").value = "";
+  };
+  subjectSel.addEventListener("change", showTier);
+  void showTier();
 
   slot.querySelector("#genBtn").addEventListener("click", async (e) => {
     const btn = e.currentTarget;
@@ -163,6 +195,7 @@ function paintGenerator() {
         subject: corpusCode(subjectSel.value),
         marks: DEFAULT_MARKS,
         weakFirst: true,
+        tier: slot.querySelector("#genTier").value || undefined,
       });
       navigate(`mock/${mock.id}`);
     } catch (err) {
@@ -203,18 +236,21 @@ async function renderSit(id) {
         <p class="view-sub">${esc(subjectName(mock.subject_code))} · ${mock.total_marks} marks · answer all questions</p>
       </div>
       <div class="view-actions">
-        <span class="exam-timer" id="examTimer" aria-live="off">${minutesToHuman(mock.duration_min ?? 0)}</span>
+        <span class="exam-timer" id="examTimer" role="timer" aria-live="off">${minutesToHuman(mock.duration_min ?? 0)}</span>
+        <span class="sr-only" id="timerAnnounce" role="status" aria-live="polite"></span>
         <button class="btn-ghost" id="leaveExam">Save &amp; leave</button>
         <button class="btn-primary" id="submitExam">Submit</button>
       </div>
     </header>
+
+    ${mock.instructions ? `<div class="rubric">${escLines(mock.instructions)}</div>` : ""}
 
     <ol class="exam-paper">
       ${questions.map((q) => `
         <li class="exam-q" id="q-${q.n}">
           <div class="exam-q-head">
             <span class="q-n">${q.n}</span>
-            <span class="marks-pill">[${q.marks}]</span>
+            <span class="marks-pill">${markPill(q.marks)}</span>
             <span class="paper-ref muted">${esc(q.paperRef ?? "")}</span>
           </div>
           <pre class="verbatim">${esc(q.text)}</pre>
@@ -241,6 +277,20 @@ async function renderSit(id) {
   root.querySelector("#submitExam").addEventListener("click", submit);
   root.querySelector("#submitExamFoot").addEventListener("click", submit);
 
+  const connectivity = () => {
+    for (const button of root.querySelectorAll("#submitExam, #submitExamFoot")) {
+      button.disabled = !navigator.onLine;
+      button.title = navigator.onLine ? "" : "Reconnect to submit for marking";
+    }
+  };
+  connectivity();
+  window.addEventListener("online", connectivity);
+  window.addEventListener("offline", connectivity);
+  removeConnectivityListeners = () => {
+    window.removeEventListener("online", connectivity);
+    window.removeEventListener("offline", connectivity);
+  };
+
   if (mock.status !== "in_progress") {
     updateMock(id, { status: "in_progress", started_at: new Date().toISOString() }).catch(() => {});
     mock.started_at = new Date().toISOString();
@@ -254,18 +304,36 @@ function startTimer(mock) {
   const started = new Date(mock.started_at ?? Date.now()).getTime();
   const endsAt = started + mock.duration_min * 60000;
 
+  const announce = root.querySelector("#timerAnnounce");
+  const said = new Set();
+  const say = (key, text) => {
+    // A countdown announced every second is unusable with a screen reader, so
+    // it is announced once at each threshold instead.
+    if (said.has(key) || !announce) return;
+    said.add(key);
+    announce.textContent = text;
+  };
+
   const tick = () => {
     const left = endsAt - Date.now();
     if (left <= 0) {
       el.textContent = "Time up";
       el.classList.add("over");
       stopTimer();
+      // The paper is over. Lock the answers so nothing more can be written, and
+      // say so: submitting is still the student's choice.
+      root.querySelectorAll(".exam-answer").forEach((box) => { box.readOnly = true; });
+      say("up", "Time is up. Submit your paper to have it marked.");
+      toast("Time is up. Submit your paper to have it marked.");
       return;
     }
     const m = Math.floor(left / 60000);
     const s = Math.floor((left % 60000) / 1000);
     el.textContent = `${m}:${String(s).padStart(2, "0")}`;
     el.classList.toggle("low", left < 5 * 60000);
+    if (left <= 60000) say("1", "One minute left.");
+    else if (left <= 5 * 60000) say("5", "Five minutes left.");
+    else if (left <= 15 * 60000) say("15", "Fifteen minutes left.");
   };
   tick();
   timer = setInterval(tick, 1000);
@@ -277,6 +345,7 @@ function stopTimer() {
 }
 
 async function submitExam(mock) {
+  if (!navigator.onLine) { toast("Reconnect to submit for marking.", "error"); return; }
   const answers = readDraft(mock.id);
   const questions = mock.questions ?? [];
   const answered = questions.filter((q) => (answers[q.n] ?? "").trim());
@@ -297,67 +366,39 @@ async function submitExam(mock) {
 
   stopTimer();
 
+  // The whole paper goes in one request. It is one AI allowance rather than
+  // one per question, and the server batches it, so a student cannot run out
+  // of quota halfway down their own paper.
   root.innerHTML = `
     <header class="view-head"><div><h1>Marking your paper</h1>
-      <p class="view-sub">Each answer is marked against its own mark scheme.</p></div></header>
-    <div class="marking-progress" id="markingProgress"></div>`;
-
-  const progress = root.querySelector("#markingProgress");
-  const results = [];
-  let awarded = 0;
-
-  for (let i = 0; i < questions.length; i++) {
-    const q = questions[i];
-    const answer = (answers[q.n] ?? "").trim();
-    progress.innerHTML = `
-      ${spinner(`Marking question ${i + 1} of ${questions.length}…`)}
-      <div class="progress-bar"><span style="width:${(i / questions.length) * 100}%"></span></div>`;
-
-    if (!answer) {
-      results.push({ n: q.n, awarded: 0, total: q.marks, blank: true, questionRef: q.paperRef, text: q.text });
-      continue;
-    }
-
-    try {
-      const r = await markAnswer({
-        answer,
-        chunkId: q.chunkId,
-        subject: mock.subject_code,
-        mockId: mock.id,
-      });
-      awarded += r.awarded;
-      results.push({ n: q.n, ...r, text: q.text });
-    } catch (e) {
-      // One failed question must not lose the other nine.
-      results.push({
-        n: q.n,
-        awarded: 0,
-        total: q.marks,
-        error: explainError(e),
-        questionRef: q.paperRef,
-        text: q.text,
-      });
-    }
-  }
-
-  const pct = mock.total_marks ? Math.round((awarded / mock.total_marks) * 100) : 0;
-  let grade = null;
-  try {
-    grade = await predictGrade(mock.subject_code, mock.questions?.[0]?.paperNo ?? 1, pct);
-  } catch {
-    /* boundaries are optional */
-  }
+      <p class="view-sub">Every answer is marked against its own mark scheme. This takes a minute.</p></div></header>
+    <div class="marking-progress" id="markingProgress">
+      ${spinner(`Marking ${answered.length} answer${answered.length === 1 ? "" : "s"}…`)}
+      <div class="progress-bar indeterminate"><span></span></div>
+    </div>`;
 
   try {
-    await updateMock(mock.id, {
-      status: "marked",
-      submitted_at: new Date().toISOString(),
-      awarded,
-      grade,
-      questions: questions.map((q) => ({ ...q, result: results.find((r) => r.n === q.n) ?? null })),
+    await markMock({
+      mockId: mock.id,
+      answers: Object.fromEntries(
+        questions.map((q) => [String(q.n), (answers[q.n] ?? "").trim()]).filter(([, v]) => v),
+      ),
     });
   } catch (e) {
-    toast(e.message, "error");
+    const message = explainError(e) ?? "Marking failed.";
+    const slot = root.querySelector("#markingProgress");
+    if (slot) {
+      slot.innerHTML = `
+        <div class="empty error">
+          <div class="empty-icon" aria-hidden="true">⚠</div>
+          <h3>Couldn't mark that paper</h3>
+          <p>${esc(message)}</p>
+          <p class="muted">Your answers are still saved on this device.</p>
+          <button class="btn-primary" id="retryMark">Try again</button>
+        </div>`;
+      slot.querySelector("#retryMark")?.addEventListener("click", () => navigate(`mock/${mock.id}`));
+    }
+    return;
   }
 
   localStorage.removeItem(draftKey(mock.id));

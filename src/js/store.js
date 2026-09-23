@@ -18,14 +18,24 @@ export const store = {
   tasks: [],
   tuition: [],
   coverage: [],           // corpus_coverage rows
+  isAdmin: false,         // may add papers to the shared library
   usage: [],              // my_ai_usage rows
   prefs: {
     source: "school",
     hideEmpty: false,
+    /** The last COURSE picked on a form (a planner subject). */
     lastSubject: null,
+    /** The last CORPUS browsed in the library or recall. A different thing:
+     *  see the note on corpusCode. */
+    lastCorpus: null,
     plannerView: "board",
   },
   ready: false,
+};
+
+/** What prefs are before anything has been loaded or saved. */
+const DEFAULT_PREFS = {
+  source: "school", hideEmpty: false, lastSubject: null, lastCorpus: null, plannerView: "board",
 };
 
 export function emit(event, payload) {
@@ -84,6 +94,25 @@ export function corpusCode(code) {
   return row?.corpus_code || code;
 }
 
+/**
+ * The course a student takes that answers from this corpus subject.
+ *
+ * The planner keeps COURSES ("Extra Maths", "Single Science Physics") and the
+ * study tools work on CORPORA ("Mathematics A", "Physics"). Anything the tools
+ * create for the planner, a revision task, has to be filed under a course the
+ * student actually has, or the board grows a second card for the corpus subject
+ * with a name they never picked. The exact course wins; failing that, any
+ * course that borrows this corpus; failing that, the corpus subject itself.
+ */
+export function courseFor(corpus) {
+  const mine = mySubjectRows();
+  return (
+    mine.find((s) => s.code === corpus) ??
+    mine.find((s) => corpusCode(s.code) === corpus) ??
+    { code: corpus }
+  ).code;
+}
+
 /** The subjects a student takes, in catalogue order, as full rows. */
 export function mySubjectRows() {
   const mine = new Set(store.mySubjects);
@@ -104,9 +133,15 @@ export function groundedSubjects() {
 export function reset() {
   store.user = null;
   store.profile = null;
+  store.subjects = [];
   store.mySubjects = [];
   store.tasks = [];
   store.tuition = [];
+  store.coverage = [];
   store.usage = [];
+  store.isAdmin = false;
   store.ready = false;
+  // Preferences belong to a person, not to the browser. The next account to sign
+  // in here must not inherit the last one's tab, filters or remembered subject.
+  Object.assign(store.prefs, DEFAULT_PREFS);
 }

@@ -1,0 +1,11 @@
+ingest/
+supabase/
+test/
+docs/
+.github/
+.env
+.env.*
+*.local
+config.local.js
+dist/
+AGENTS.md

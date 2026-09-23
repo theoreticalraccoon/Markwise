@@ -31,6 +31,17 @@ export function generateMock(body, options) {
   return callFunction("mock", body, options);
 }
 
+/**
+ * Mark a whole sat mock in one request.
+ *
+ * One quota claim for the paper rather than one per question, and the server
+ * batches the questions so a long paper does not become a dozen sequential
+ * round trips.
+ */
+export function markMock(body, options) {
+  return callFunction("mark-mock", body, options);
+}
+
 /** Whole-paper marking from photos. Slow by nature: two model passes. */
 export function markPaper(body, options) {
   return callFunction("mark-paper", body, options);
@@ -49,7 +60,11 @@ export function explainError(error) {
   }
   if (error?.status === 401) return "Your session expired. Sign in again.";
   // Routes that explain themselves: pass their wording straight through.
-  for (const code of ["empty_corpus", "not_found", "no_markscheme", "unrecognised", "unsupported", "no_answers"]) {
+  for (const code of [
+    "empty_corpus", "not_found", "no_markscheme", "unrecognised", "unsupported",
+    "no_answers", "no_papers", "paper_not_held", "ambiguous_paper", "admin_only",
+    "unrecognised_series", "unknown_subject",
+  ]) {
     if (error?.code === code) return error.message;
   }
   if (error?.status === 413) return "That file is too large. Try a smaller scan, or fewer photos.";

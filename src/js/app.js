@@ -10,22 +10,31 @@ import { byId, on } from "./ui/dom.js";
 import { toast } from "./ui/feedback.js";
 import { sb } from "./api/client.js";
 import { store, reset, loadPrefs } from "./store.js";
-import { loadCatalogue, loadProfile } from "./api/data.js";
+import { loadCatalogue, loadProfile, loadAdmin } from "./api/data.js";
 import { initTheme } from "./theme.js";
+import { clearOfflineWork } from "./lib/offline.js";
 import { defineRoute, setOutlet, startRouter, navigate, handleRoute } from "./router.js";
 import { renderAuth, renderRecovery, renderOnboarding } from "./views/auth.js";
 
 import * as planner from "./views/planner.js";
+import * as calendar from "./views/calendar.js";
 import * as assistant from "./views/assistant.js";
+import * as library from "./views/library.js";
+import * as recall from "./views/recall.js";
 import * as mock from "./views/mock.js";
 import * as markpaper from "./views/markpaper.js";
+import * as papers from "./views/papers.js";
 import * as progress from "./views/progress.js";
 import * as settings from "./views/settings.js";
 
 defineRoute("planner", planner);
+defineRoute("calendar", calendar);
 defineRoute("assistant", assistant);
+defineRoute("library", library);
+defineRoute("recall", recall);
 defineRoute("mock", mock);
 defineRoute("markpaper", markpaper);
+defineRoute("papers", papers);
 defineRoute("progress", progress);
 defineRoute("settings", settings);
 
@@ -42,9 +51,24 @@ function show(screen) {
 }
 
 function showAuth() {
+  clearOfflineWork();
   reset();
+  resetViews();
   show("authScreen");
   renderAuth();
+}
+
+/**
+ * Clear every view's remembered state.
+ *
+ * Views keep module-level state (the chat, the filters, the chosen subject) and
+ * it survives sign-out. Signing in as someone else on the same computer then
+ * showed them the last person's conversation.
+ */
+function resetViews() {
+  for (const view of [planner, calendar, recall, assistant, library, markpaper, progress]) {
+    view.invalidate?.();
+  }
 }
 
 let booting = null;
@@ -59,6 +83,7 @@ async function showApp(user) {
 }
 
 async function doShowApp(user) {
+  if (store.user && store.user.id !== user.id) clearOfflineWork();
   store.user = user;
   show("appShell");
   byId("userEmail").textContent = user.email ?? "";
@@ -66,6 +91,7 @@ async function doShowApp(user) {
   try {
     await loadCatalogue();
     await loadProfile(user.id);
+    await loadAdmin(user.id).catch(() => {});
   } catch (e) {
     toast(e.message, "error");
   }
@@ -82,7 +108,7 @@ async function doShowApp(user) {
 }
 
 function boot() {
-  planner.invalidate();
+  resetViews();
   if (!routerStarted) {
     setOutlet(byId("outlet"));
     startRouter();
@@ -102,10 +128,12 @@ function wireShell() {
     e.preventDefault();
     navigate(el.dataset.nav);
     byId("appShell").classList.remove("nav-open");
+    byId("navToggle").setAttribute("aria-expanded", "false");
   });
 
-  byId("navToggle").addEventListener("click", () => {
-    byId("appShell").classList.toggle("nav-open");
+  byId("navToggle").addEventListener("click", (e) => {
+    const open = byId("appShell").classList.toggle("nav-open");
+    e.currentTarget.setAttribute("aria-expanded", String(open));
   });
 
   byId("signOut").addEventListener("click", async () => {
@@ -120,7 +148,18 @@ function wireShell() {
     if (!byId("appShell") || byId("appShell").hidden) return;
     if (!byId("modalOverlay").hidden) return;
 
-    const routes = { p: "planner", a: "assistant", m: "mock", k: "markpaper", g: "progress" };
+    // Single letters, documented in the sidebar and in the README. Keep the
+    // three lists in step.
+    const routes = {
+      p: "planner",
+      c: "calendar",
+      a: "assistant",
+      l: "library",
+      r: "recall",
+      m: "mock",
+      k: "markpaper",
+      g: "progress",
+    };
     const target = routes[e.key.toLowerCase()];
     if (target) {
       e.preventDefault();
@@ -135,6 +174,7 @@ function wireShell() {
   initTheme();
   loadPrefs();
   wireShell();
+  registerServiceWorker();
 
   sb.auth.onAuthStateChange((event, session) => {
     if (event === "PASSWORD_RECOVERY") {
@@ -187,4 +227,25 @@ function cleanUrl() {
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * Offline shell.
+ *
+ * Students revise on trains and in schools with one access point between four
+ * hundred of them. The worker caches the shell and the stylesheets so the app
+ * opens without a network; everything behind Supabase obviously still needs
+ * one, and the views already say so honestly when a request fails.
+ *
+ * Registration is skipped on file:// where service workers are not allowed,
+ * and a failure is never fatal.
+ */
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  if (location.protocol !== "http:" && location.protocol !== "https:") return;
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((e) => {
+      console.warn("Service worker not registered:", e.message);
+    });
+  });
 }

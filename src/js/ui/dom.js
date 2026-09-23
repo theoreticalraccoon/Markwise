@@ -60,14 +60,31 @@ export function renderMarkdown(text) {
   return out.join("\n");
 }
 
+/**
+ * Unwrap "$3n + k$" to "3n + k", and leave "$40 to $60" alone.
+ *
+ * Models reach for LaTeX on anything mathematical. The prompts forbid it, but a
+ * stray "$x$" reaching the student as literal dollar signs is worse than
+ * unwrapping it here. The old rule removed every pair of dollar signs, which
+ * turned "costs rise from $40 to $60" into "costs rise from 40 to 60" and made
+ * Business, Economics and Accounting answers wrong.
+ *
+ * A pair is only unwrapped when the text between them (a) has no space just
+ * inside either sign, as maths never does and prices always do, and (b) looks
+ * like maths: an operator, a bracket, or a lone letter.
+ */
+function unwrapMath(s) {
+  return s.replace(/\$\$?([^\s$](?:[^$\n]{0,118}[^\s$])?)\$\$?/g, (whole, inner) =>
+    /[\\^_{}=+*\/]|(?:^|[^A-Za-z])[A-Za-z](?:[^A-Za-z]|$)/.test(inner) ? inner : whole,
+  );
+}
+
 function inline(s) {
-  return s
-    // Models reach for LaTeX on anything mathematical. The prompts forbid it,
-    // but a stray "$x$" reaching the student as literal dollar signs is worse
-    // than silently unwrapping it here.
-    .replace(/\$\$?([^$\n]{1,120}?)\$\$?/g, "$1")
+  return unwrapMath(s)
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/(^|\W)\*(?!\s)(.+?)(?<!\s)\*(?=\W|$)/g, "$1<em>$2</em>")
+    // No lookbehind: it is a syntax error on iOS before 16.4, which took the
+    // whole app down with it. "Ends on a non-space" is written into the match.
+    .replace(/(^|\W)\*(?!\s)([^*]*?[^\s*])\*(?=\W|$)/g, "$1<em>$2</em>")
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     // [3] and [1, 2] become clickable citation pills
     .replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, (_, nums) =>

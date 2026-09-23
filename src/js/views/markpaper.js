@@ -1,8 +1,18 @@
 /**
  * Mark paper: photograph your written answers, get the whole paper marked.
  *
- * Three steps on one screen: pick the paper, add photos, get it back marked.
- * The student never types anything.
+ * Three steps on one screen: pick the subject, add the pages, get it back
+ * marked. The student never types anything, and never tells Markwise which
+ * paper it is: that is printed on the front of the thing they just
+ * photographed.
+ *
+ * Two routes:
+ *   #/markpaper        upload, and the papers you have had marked before
+ *   #/markpaper/<id>   one saved result
+ *
+ * Results are saved server-side. They used to live only in this module's
+ * memory, so a refresh threw away an hour of the student's work and a minute
+ * of Gemini's.
  *
  * Photos are downscaled in the browser before upload. A modern phone camera
  * produces 4-8 MB per page, and six of those would exceed the request limit and
@@ -11,88 +21,118 @@
  */
 
 import { esc, on } from "../ui/dom.js";
-import { toast, emptyState, spinner } from "../ui/feedback.js";
-import { groundedSubjects, corpusCode } from "../store.js";
+import { toast, emptyState, spinner, confirmModal, skeleton } from "../ui/feedback.js";
+import { groundedSubjects, corpusCode, subjectName } from "../store.js";
 import { markPaper, explainError } from "../api/ai.js";
+import { loadPaperAttempts, getPaperAttempt, deletePaperAttempt } from "../api/data.js";
+import { formatDateTime } from "../lib/dates.js";
 import { navigate } from "../router.js";
 
 const MAX_EDGE = 1600;
 const JPEG_QUALITY = 0.82;
+const MAX_PAGES = 12;
 
 let root = null;
-let state = { subject: null, files: [], busy: false, result: null };
+let state = { subject: null, files: [], busy: false };
 
-export async function render(container) {
+export async function render(container, { segments = [] } = {}) {
   root = container;
-  const grounded = groundedSubjects();
-  state.subject = state.subject ?? grounded[0]?.code ?? null;
-  state.files = [];
-  state.result = null;
+  if (segments.length) return renderSaved(segments[0]);
 
-  container.innerHTML = shell();
+  const grounded = groundedSubjects();
+  if (!grounded.some((s) => s.code === state.subject)) state.subject = grounded[0]?.code ?? null;
+  state.files = [];
+  state.busy = false;
+
+  container.innerHTML = grounded.length ? shell() : noCorpus();
+  if (!grounded.length) {
+    on(root, "click", "[data-goto]", (_, b) => navigate(b.dataset.goto));
+    return;
+  }
   wire();
   paint();
+  void paintHistory();
 }
 
-function shell() {
-  const grounded = groundedSubjects();
+function head() {
   return `
     <header class="view-head">
       <div>
         <h1>Mark a paper</h1>
         <p class="view-sub">Photograph what you wrote. Every question is marked against the real mark scheme.</p>
       </div>
-    </header>
+    </header>`;
+}
 
-    ${grounded.length ? `
-      <div class="steps">
-        <section class="step">
-          <p class="step-label"><span class="step-n">1</span> Which subject?</p>
-          <div class="step-body">
-            <select id="mpSubject" aria-label="Subject">
-              ${grounded.map((s) => `<option value="${esc(s.code)}">${esc(s.name)}</option>`).join("")}
-            </select>
-          </div>
-        </section>
+function noCorpus() {
+  return head() + emptyState({
+    icon: "📄",
+    title: "Nothing loaded for your subjects yet",
+    message:
+      "Marking works against the real mark scheme, so it only covers subjects whose papers have been added. " +
+      "Add a paper, or pick a subject that already has some.",
+    action: `
+      <button class="btn-primary" data-goto="papers">Add a paper</button>
+      <button class="btn-ghost" data-goto="settings">Choose subjects</button>`,
+  });
+}
 
-        <section class="step">
-          <p class="step-label"><span class="step-n">2</span> Upload the paper you did</p>
-          <div class="step-body">
-            <label class="dropzone" id="mpDrop">
-              <input type="file" id="mpFiles" accept="image/*,application/pdf" multiple hidden>
-              <span class="dropzone-icon">📄</span>
-              <span class="dropzone-main">Drop your paper here, or tap to choose</span>
-              <span class="dropzone-sub">
-                A PDF scan, or a photo of each page. Markwise reads the cover to work out
-                which paper it is. You don't need to tell it.
-              </span>
-            </label>
-            <div id="mpFileList"></div>
-          </div>
-        </section>
+function shell() {
+  const grounded = groundedSubjects();
+  return `
+    ${head()}
 
-        <div class="step-actions">
-          <button class="btn-primary big" id="mpGo" disabled>Mark my paper</button>
-          <span class="muted" id="mpNote"></span>
+    <div class="steps">
+      <section class="step">
+        <p class="step-label"><span class="step-n">1</span> Which subject?</p>
+        <div class="step-body">
+          <select id="mpSubject" aria-label="Subject">
+            ${grounded.map((s) => `<option value="${esc(s.code)}"${s.code === state.subject ? " selected" : ""}>${esc(s.name)}</option>`).join("")}
+          </select>
         </div>
-      </div>
+      </section>
 
-      <div id="mpResult"></div>`
-      : ""}`;
+      <section class="step">
+        <p class="step-label"><span class="step-n">2</span> Upload the paper you did</p>
+        <div class="step-body">
+          <label class="dropzone" id="mpDrop">
+            <input type="file" id="mpFiles" accept="image/*,application/pdf" multiple hidden>
+            <span class="dropzone-icon" aria-hidden="true">📄</span>
+            <span class="dropzone-main">Drop your paper here, or tap to choose</span>
+            <span class="dropzone-sub">
+              A PDF scan, or a photo of each page, up to ${MAX_PAGES}. Markwise reads the cover to
+              work out which paper it is. You don't need to tell it.
+            </span>
+          </label>
+          <div id="mpFileList"></div>
+        </div>
+      </section>
+
+      <div class="step-actions">
+        <button class="btn-primary big" id="mpGo" disabled>Mark my paper</button>
+        <span class="muted" id="mpNote"></span>
+      </div>
+    </div>
+
+    <div id="mpResult"></div>
+
+    <h2 class="section-title">Papers you have had marked</h2>
+    <div id="mpHistory">${skeleton(2)}</div>`;
 }
 
 /* ------------------------------------------------------------------ wiring -- */
 
 function wire() {
-  if (!root.querySelector("#mpSubject")) return;
-
   root.querySelector("#mpSubject").addEventListener("change", (e) => {
     state.subject = e.target.value;
     paint();
   });
 
   const input = root.querySelector("#mpFiles");
-  input.addEventListener("change", () => addFiles([...input.files]));
+  input.addEventListener("change", () => {
+    addFiles([...input.files]);
+    input.value = "";   // re-picking the same file must still fire a change
+  });
 
   const drop = root.querySelector("#mpDrop");
   for (const type of ["dragenter", "dragover"]) {
@@ -108,6 +148,26 @@ function wire() {
     paint();
   });
 
+  on(root, "click", "[data-open-paper]", (_, btn) => navigate(`markpaper/${btn.dataset.openPaper}`));
+
+  on(root, "click", "[data-del-paper]", async (_, btn) => {
+    const ok = await confirmModal({
+      title: "Delete this marked paper",
+      message: "The result is removed. The marks it contributed to your topic profile stay.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deletePaperAttempt(btn.dataset.delPaper);
+      await paintHistory();
+    } catch (e) {
+      toast(e.message, "error");
+    }
+  });
+
+  on(root, "click", "[data-goto]", (_, b) => navigate(b.dataset.goto));
+
   root.querySelector("#mpGo").addEventListener("click", submit);
 }
 
@@ -116,8 +176,12 @@ function wire() {
 async function addFiles(incoming) {
   const usable = incoming.filter((f) => /^image\//.test(f.type) || f.type === "application/pdf");
   if (usable.length < incoming.length) toast("Only photos and PDFs can be marked.", "error");
+  if (state.files.length >= MAX_PAGES) {
+    toast(`That is the limit of ${MAX_PAGES} pages.`, "error");
+    return;
+  }
 
-  for (const file of usable.slice(0, 12 - state.files.length)) {
+  for (const file of usable.slice(0, MAX_PAGES - state.files.length)) {
     try {
       state.files.push(await prepare(file));
     } catch {
@@ -156,18 +220,6 @@ function toBase64(blob) {
 /* ---------------------------------------------------------------- painting -- */
 
 function paint() {
-  if (!groundedSubjects().length) {
-    root.querySelector(".view-head").insertAdjacentHTML("afterend", "");
-    root.innerHTML = root.querySelector(".view-head").outerHTML + emptyState({
-      icon: "📄",
-      title: "Nothing loaded for this subject yet",
-      message: "Marking works against the real mark scheme, so it only covers subjects whose papers are loaded. Pick one of those in Settings.",
-      action: `<button class="btn-ghost" data-goto="settings">Choose subjects</button>`,
-    });
-    on(root, "click", "[data-goto]", (_, b) => navigate(b.dataset.goto));
-    return;
-  }
-
   const list = root.querySelector("#mpFileList");
   if (list) {
     list.innerHTML = state.files.length
@@ -176,21 +228,52 @@ function paint() {
             <li>
               <span class="file-name">${esc(f.name)}</span>
               <span class="file-size muted">${Math.round(f.size / 1024)} KB</span>
-              <button class="icon-btn" data-drop-file="${i}" aria-label="Remove">&times;</button>
+              <button class="icon-btn" data-drop-file="${i}" aria-label="Remove ${esc(f.name)}">&times;</button>
             </li>`).join("")}
         </ul>`
       : "";
   }
 
   const go = root.querySelector("#mpGo");
-  if (go) {
-    const ready = state.subject && state.files.length && !state.busy;
-    go.disabled = !ready;
-    go.textContent = state.busy ? "Marking…" : "Mark my paper";
-    root.querySelector("#mpNote").textContent = state.busy
-      ? "Working out which paper this is, then marking every question. Give it a minute."
-      : state.files.length ? "" : "Upload your paper first.";
+  if (!go) return;
+  const ready = state.subject && state.files.length && !state.busy;
+  go.disabled = !ready;
+  go.textContent = state.busy ? "Marking…" : "Mark my paper";
+  root.querySelector("#mpNote").textContent = state.busy
+    ? "Working out which paper this is, then marking every question. Give it a minute."
+    : state.files.length ? "" : "Upload your paper first.";
+}
+
+async function paintHistory() {
+  const slot = root?.querySelector("#mpHistory");
+  if (!slot) return;
+  try {
+    const rows = await loadPaperAttempts();
+    // A slow load can finish after the student has navigated away.
+    const el = root?.querySelector("#mpHistory");
+    if (!el) return;
+    el.innerHTML = rows.length
+      ? `<div class="mock-list">${rows.map(historyCard).join("")}</div>`
+      : '<p class="muted">Nothing yet. The first paper you mark will be kept here.</p>';
+  } catch (e) {
+    const el = root?.querySelector("#mpHistory");
+    if (el) el.innerHTML = `<p class="muted">${esc(e.message)}</p>`;
   }
+}
+
+function historyCard(r) {
+  return `
+    <article class="mock-card">
+      <button class="mock-open" data-open-paper="${esc(r.id)}">
+        <span class="mock-title">${esc(r.title)}</span>
+        <span class="mock-meta">
+          ${esc(subjectName(r.subject_code))} · ${r.marked} question${r.marked === 1 ? "" : "s"} marked
+          · ${formatDateTime(r.created_at)}
+        </span>
+      </button>
+      <span class="mock-status marked">${r.awarded}/${r.total} · ${r.pct}%${r.grade ? ` · ${esc(r.grade)}` : ""}</span>
+      <button class="icon-btn" data-del-paper="${esc(r.id)}" aria-label="Delete this result">&times;</button>
+    </article>`;
 }
 
 /* ---------------------------------------------------------------- marking -- */
@@ -206,12 +289,19 @@ async function submit() {
       subject: corpusCode(state.subject),
       files: state.files.map((f) => ({ mimeType: f.mimeType, data: f.data })),
     });
-    state.result = result;
-    paintResult(result);
+    // Saved server-side, so send the student to the permanent copy rather than
+    // to a screen that a refresh would wipe.
+    if (result.id) {
+      navigate(`markpaper/${result.id}`);
+      return;
+    }
+    paintResult(result, root.querySelector("#mpResult"));
   } catch (e) {
     const message = explainError(e);
     root.querySelector("#mpResult").innerHTML = message
-      ? `<div class="empty error"><div class="empty-icon">⚠</div><h3>Couldn't mark that</h3><p>${esc(message)}</p></div>`
+      ? `<div class="empty error"><div class="empty-icon" aria-hidden="true">⚠</div>
+           <h3>Couldn't mark that</h3><p>${esc(message)}</p>
+           <button class="btn-ghost" data-goto="papers">Add the paper to the corpus</button></div>`
       : "";
   } finally {
     state.busy = false;
@@ -219,12 +309,55 @@ async function submit() {
   }
 }
 
-function paintResult(r) {
+/* ------------------------------------------------------------ saved result -- */
+
+async function renderSaved(id) {
+  root.innerHTML = spinner("Loading your marked paper…");
+
+  let row;
+  try {
+    row = await getPaperAttempt(id);
+    if (!row) throw new Error("That marked paper no longer exists.");
+  } catch (e) {
+    root.innerHTML = `<div class="empty error"><h3>Not found</h3><p>${esc(e.message)}</p></div>`;
+    return;
+  }
+
+  root.innerHTML = `
+    <header class="view-head">
+      <div>
+        <h1>${esc(row.title)}</h1>
+        <p class="view-sub">${esc(subjectName(row.subject_code))} · marked ${formatDateTime(row.created_at)}</p>
+      </div>
+      <div class="view-actions">
+        <button class="btn-ghost" data-goto="markpaper">Mark another</button>
+        <button class="btn-ghost" id="printPaper">Print</button>
+      </div>
+    </header>
+    <div id="mpResult"></div>`;
+
+  paintResult({
+    paper: { title: row.title },
+    awarded: row.awarded,
+    total: row.total,
+    pct: row.pct,
+    grade: row.grade,
+    marked: row.marked,
+    unmarkable: row.unmarkable,
+    questions: row.questions ?? [],
+  }, root.querySelector("#mpResult"));
+
+  on(root, "click", "[data-goto]", (_, b) => navigate(b.dataset.goto));
+  root.querySelector("#printPaper").addEventListener("click", () => window.print());
+}
+
+function paintResult(r, slot) {
+  if (!slot) return;
   const band = r.pct >= 80 ? "good" : r.pct >= 50 ? "mid" : "poor";
 
   const byTopic = new Map();
   for (const q of r.questions) {
-    if (q.awarded === null) continue;
+    if (q.awarded === null || q.awarded === undefined) continue;
     const t = q.topic ?? "Unclassified";
     const e = byTopic.get(t) ?? { got: 0, out: 0 };
     e.got += q.awarded;
@@ -232,7 +365,7 @@ function paintResult(r) {
     byTopic.set(t, e);
   }
 
-  root.querySelector("#mpResult").innerHTML = `
+  slot.innerHTML = `
     <section class="paper-result">
       <p class="matched-paper">Marked against <strong>${esc(r.paper?.title ?? "")}</strong></p>
       <div class="result-top">
@@ -240,7 +373,7 @@ function paintResult(r) {
           <span class="score-value">${r.awarded}<span class="score-of">/${r.total}</span></span>
           <span class="score-pct">${r.pct}%</span>
         </div>
-        ${r.grade ? `<div class="grade-pill">Grade ${esc(r.grade)}</div>` : ""}
+        ${r.grade ? `<div class="grade-pill" title="Based on published grade thresholds">Grade ${esc(r.grade)}</div>` : ""}
         <p class="muted">${r.marked} of ${r.questions.length} questions marked${
           r.unmarkable ? ` · ${r.unmarkable} had no mark scheme` : ""}</p>
       </div>
@@ -267,8 +400,12 @@ function paintResult(r) {
 }
 
 function questionCard(q) {
-  const pct = q.awarded !== null && q.marks ? Math.round((q.awarded / q.marks) * 100) : 0;
-  const band = q.awarded === null ? "" : pct >= 80 ? "good" : pct >= 50 ? "mid" : "poor";
+  const pct = q.awarded !== null && q.awarded !== undefined && q.marks
+    ? Math.round((q.awarded / q.marks) * 100)
+    : 0;
+  const band = q.awarded === null || q.awarded === undefined
+    ? ""
+    : pct >= 80 ? "good" : pct >= 50 ? "mid" : "poor";
 
   const status = {
     blank: '<p class="muted">You left this one blank.</p>',
@@ -280,7 +417,7 @@ function questionCard(q) {
     <li class="paper-q">
       <div class="paper-q-head">
         <span class="q-n">${esc(q.questionNo)}</span>
-        <span class="marks-pill ${band}">${q.awarded === null ? ": " : q.awarded}/${q.marks}</span>
+        <span class="marks-pill ${band}">${q.awarded === null || q.awarded === undefined ? "–" : q.awarded}/${q.marks}</span>
         ${q.topic ? `<span class="muted">${esc(q.topic)}</span>` : ""}
       </div>
 
@@ -290,7 +427,7 @@ function questionCard(q) {
         <ul class="breakdown compact">
           ${q.breakdown.map((b) => `
             <li class="${b.earned ? "earned" : "lost"}">
-              <span class="tick">${b.earned ? "✓" : "✗"}</span>
+              <span class="tick" aria-hidden="true">${b.earned ? "✓" : "✗"}</span>
               <div><p class="point">${esc(b.point)}</p><p class="why">${esc(b.why)}</p></div>
             </li>`).join("")}
         </ul>` : ""}
@@ -304,4 +441,9 @@ function questionCard(q) {
         ${q.markScheme ? `<pre class="verbatim ms">${esc(q.markScheme)}</pre>` : ""}
       </details>
     </li>`;
+}
+
+/** Forget the chosen subject and any pages. Called on sign-in and sign-out. */
+export function invalidate() {
+  state = { subject: null, files: [], busy: false };
 }

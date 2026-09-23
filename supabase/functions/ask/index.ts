@@ -12,9 +12,9 @@
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { preflight, fail, sseHeaders, sseEvent } from "../_shared/http.ts";
 import { requireUser, adminClient } from "../_shared/db.ts";
-import { claim, QuotaExceeded } from "../_shared/quota.ts";
+import { claim, release, QuotaExceeded } from "../_shared/quota.ts";
 import { generateStream } from "../_shared/gemini.ts";
-import { search, packContext, toCitation, parseQuery, type Citation } from "../_shared/retrieve.ts";
+import { search, packContext, toCitation, learningFilters, contextualQuery, type Citation } from "../_shared/retrieve.ts";
 import { ASK_SYSTEM, TECHNIQUE_SYSTEM, askUserPrompt } from "../_shared/prompts.ts";
 
 type Mode = "ask" | "technique" | "syllabus";
@@ -58,9 +58,14 @@ Deno.serve(async (req) => {
   if (question.length > 4000) return fail(req, "That question is too long.");
 
   const mode: Mode = body.mode ?? "ask";
+  const history = Array.isArray(body.history) ? body.history.slice(-6)
+    .filter((h) => h && (h.role === "user" || h.role === "model") && typeof h.text === "string")
+    .map((h) => ({ ...h, text: h.text.slice(0, 4000) })) : [];
+  const retrievalQuery = contextualQuery(question, history);
+  const filters = learningFilters(retrievalQuery);
 
   try {
-    await claim(user.id, "ask");
+    await claim(user, "ask");
   } catch (e) {
     if (e instanceof QuotaExceeded) return fail(req, e.message, 429);
     throw e;
@@ -72,14 +77,16 @@ Deno.serve(async (req) => {
   // ---- retrieve -----------------------------------------------------------
   let hits;
   try {
-    hits = await search(admin, question, {
+    hits = await search(admin, retrievalQuery, {
       subject: body.subject ?? null,
       kinds: kindsFor(mode),
       count: mode === "technique" ? 10 : 8,
       expandSiblings: true,
-      filters: parseQuery(question),
+      includeSyllabus: mode !== "technique",
+      filters,
     });
   } catch (e) {
+    await release(user, "ask");
     return fail(req, e instanceof Error ? e.message : "Retrieval failed.", 502);
   }
 
@@ -114,7 +121,7 @@ Deno.serve(async (req) => {
         for await (
           const delta of generateStream(prompt, {
             system,
-            history: (body.history ?? []).slice(-6),
+            history,
             temperature: 0.15,
             maxOutputTokens: 1800,
           })
@@ -124,6 +131,9 @@ Deno.serve(async (req) => {
         }
         send("done", { chars: full.length, ms: Date.now() - started });
       } catch (e) {
+        // Only refund when nothing reached the student. A half-delivered answer
+        // was still an answer.
+        if (!full) await release(user, "ask");
         send("error", { message: e instanceof Error ? e.message : "Generation failed." });
       } finally {
         controller.close();

@@ -85,30 +85,38 @@ export async function streamFunction(name, body, handlers = {}, { signal } = {})
   const decoder = new TextDecoder();
   let buffer = "";
 
+  const dispatch = (frame) => {
+    let event = "message";
+    const dataLines = [];
+    for (const line of frame.split(/\r?\n/)) {
+      if (line.startsWith("event:")) event = line.slice(6).trim();
+      else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+    }
+    if (!dataLines.length) return;
+    let data;
+    try {
+      data = JSON.parse(dataLines.join("\n"));
+    } catch {
+      return;
+    }
+    handlers[event]?.(data);
+  };
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
 
-    // Frames are separated by a blank line; a partial frame stays buffered.
-    const frames = buffer.split("\n\n");
+    // Frames are separated by a blank line, which may be \n\n or \r\n\r\n; a
+    // partial frame stays buffered.
+    const frames = buffer.split(/\r?\n\r?\n/);
     buffer = frames.pop() ?? "";
-
-    for (const frame of frames) {
-      let event = "message";
-      const dataLines = [];
-      for (const line of frame.split("\n")) {
-        if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
-      }
-      if (!dataLines.length) continue;
-      let data;
-      try {
-        data = JSON.parse(dataLines.join("\n"));
-      } catch {
-        continue;
-      }
-      handlers[event]?.(data);
-    }
+    for (const frame of frames) dispatch(frame);
   }
+
+  // The stream can end without a trailing blank line. The last frame is
+  // usually "done", and dropping it left the UI waiting for an event that had
+  // already been sent.
+  buffer += decoder.decode();
+  if (buffer.trim()) dispatch(buffer);
 }

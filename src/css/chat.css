@@ -141,7 +141,7 @@
   display: inline-block;
   background: var(--pen-soft); color: var(--pen);
   border: 0; border-radius: 4px;
-  font: 600 11px var(--mono);
+  font: 600 11px var(--font);
   padding: 1px 4px; margin: 0 1px;
 }
 .cite:hover { background: var(--pen); color: #fff; }
@@ -157,7 +157,7 @@
 .cite-n {
   background: var(--pen); color: #fff; border-radius: 50%;
   width: 15px; height: 15px; display: grid; place-items: center;
-  font: 600 10px var(--mono);
+  font: 600 10px var(--font);
 }
 
 .typing { display: inline-flex; gap: 4px; padding: 6px 0; }
@@ -181,7 +181,7 @@
 .mark-score.good { color: var(--good); }
 .mark-score.mid { color: var(--mid); }
 .mark-score.poor { color: var(--poor); }
-.mark-ref { font: 11.5px var(--mono); color: var(--muted); }
+.mark-ref { font: 11.5px var(--font); color: var(--muted); }
 .mark-feedback { font-size: 13.5px; color: var(--ink-2); margin: 0 0 12px; }
 .mark-sub {
   font-size: 11.5px; font-weight: 700; text-transform: uppercase;
@@ -237,7 +237,7 @@
 }
 .file-list li:last-child { border-bottom: 0; }
 .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-size { font: 11px var(--mono); }
+.file-size { font: 11px var(--font); }
 
 /* --- the upload queue ---------------------------------------------------- */
 
@@ -274,8 +274,8 @@
 }
 .coverage-row:last-child { border-bottom: 0; }
 .coverage-name { font-weight: 600; }
-.coverage-count { font: 12px var(--mono); color: var(--muted); }
-.coverage-years { font: 11.5px var(--mono); }
+.coverage-count { font: 12px var(--font); color: var(--muted); }
+.coverage-years { font: 11.5px var(--font); }
 
 /* ========================================================== marked paper == */
 
@@ -341,4 +341,4 @@
   font-size: 10.5px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .05em;
 }
-.cite-marks { font: 10.5px var(--mono); opacity: .7; margin-left: 4px; }
+.cite-marks { font: 10.5px var(--font); opacity: .7; margin-left: 4px; }

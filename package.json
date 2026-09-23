@@ -3,21 +3,29 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "IGCSE study assistant: a planner, and an AI grounded in the real past papers and mark schemes.",
+  "description": "Edexcel International GCSE study assistant: a planner, a calendar, and an AI grounded in the real past papers and mark schemes.",
   "scripts": {
-    "test": "node test/logic.test.mjs",
+    "build": "node scripts/build-static.mjs",
+    "test": "node test/logic.test.mjs && node --test test/*.spec.mjs",
+    "test:corpus": "node --env-file-if-exists=ingest/.env ingest/verify-corpus.mjs",
+    "corpus:repair-pairings": "node --env-file-if-exists=ingest/.env ingest/repair-pairings.mjs",
     "test:functions": "node --env-file-if-exists=ingest/.env ingest/smoke-functions.mjs",
+    "test:assistant": "node --env-file-if-exists=ingest/.env ingest/check-assistant.mjs",
     "serve": "npx --yes serve .",
     "test:browser": "node --env-file-if-exists=ingest/.env ingest/smoke-browser.mjs",
     "test:security": "node --env-file-if-exists=ingest/.env ingest/smoke-security.mjs",
     "test:upload": "node --env-file-if-exists=ingest/.env ingest/smoke-upload.mjs",
-    "rag:proof": "node --env-file-if-exists=ingest/.env ingest/rag-proof.mjs"
+    "rag:proof": "node --env-file-if-exists=ingest/.env ingest/rag-proof.mjs",
+    "check": "node test/parse.test.mjs",
+    "test:all": "npm test && npm run check"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
+    "lucide-static": "^1.47.0",
     "playwright": "^1.63.0"
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "license": "MIT"
 }

@@ -9,9 +9,9 @@
  *
  * Uses a throwaway user and cleans up the rows it creates.
  */
-import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFile, stat } from "node:fs/promises";
+import { globSync } from "node:fs";
+import { join, basename } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
 config();
@@ -44,29 +44,37 @@ try {
     "Content-Type": "application/json",
   };
 
-  const files = (await readdir(PDF_DIR)).filter((f) => f.endsWith(".pdf"));
-  const qp = files.find((f) => f.includes("_qp_"));
-  if (!qp) throw new Error("No question-paper PDF in ingest/pdfs to test with.");
+  // Smallest question paper anywhere under pdfs/ (searched recursively: the
+  // real corpus lives in one folder per subject, pdfs/<CODE>/). Smallest, not
+  // first found, because this file is also sent to mark-paper below as a
+  // stand-in for a photographed answer script, and mark-paper's job is a
+  // couple of handwritten pages, not a 30-page typeset exam paper: a big one
+  // measurably risks the edge function's own compute budget, a platform
+  // limit no amount of client code here works around.
+  const candidates = globSync("**/*_qp_*.pdf", { cwd: PDF_DIR });
+  if (!candidates.length) throw new Error("No question-paper PDF in ingest/pdfs to test with.");
+  const sized = await Promise.all(candidates.map(async (f) => ({ f, size: (await stat(join(PDF_DIR, f))).size })));
+  sized.sort((a, b) => a.size - b.size);
+  const qp = sized[0].f;
 
   /* ------------------------------------------------------------- ingest -- */
-  console.log(`\ningest  (${qp})`);
+  console.log(`\ningest  (${basename(qp)})`);
   {
-    // Ingest into a throwaway subject so the real corpus is untouched.
+    // A throwaway (non-admin) user. `ingest` is admin-only — writing to the
+    // shared corpus used to be open to any signed-in account, which was the
+    // actual security hole; this proves it stays closed.
     const data = (await readFile(join(PDF_DIR, qp))).toString("base64");
-    const t = Date.now();
     const res = await fetch(`${FN}/ingest`, {
       method: "POST", headers,
-      body: JSON.stringify({ fileName: qp, file: { mimeType: "application/pdf", data } }),
+      body: JSON.stringify({ fileName: basename(qp), file: { mimeType: "application/pdf", data } }),
     });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      check(false, "PDF accepted", `${res.status} ${body.message ?? body.error ?? ""}`);
+    if (res.status === 403) {
+      check(true, "a non-admin is refused", body.message?.slice(0, 70));
+    } else if (res.ok) {
+      check(false, "a non-admin should not be able to write to the shared corpus", `got ${res.status}`);
     } else {
-      check(true, "PDF accepted", `${((Date.now() - t) / 1000).toFixed(0)}s`);
-      check(body.kind === "qp", "recognised as a question paper", body.kind);
-      check(!!body.subjectCode, "worked out the subject", `${body.subject} (${body.subjectCode})`);
-      check(body.questions > 5, "extracted questions", `${body.questions}`);
-      console.log(`        "${body.message}"`);
+      check(false, "ingest responded", `${res.status} ${body.message ?? body.error ?? ""}`);
     }
   }
 

@@ -42,36 +42,26 @@ export function commandWord(text) {
 /* ------------------------------------------------------------- topic sets -- */
 
 /**
- * Fallback vocabularies for the common subjects, used when no syllabus PDF has
- * been ingested for that subject yet. Deliberately coarse. A dozen buckets a
- * student would recognise, matching how revision guides are organised.
+ * Topics for a subject, read from its own ingested specification.
+ *
+ * There used to be a hardcoded fallback dict here for subjects with no
+ * specification ingested yet, keyed by Cambridge's bare four-digit codes
+ * (0625, 0620, ...). It went dead the day the catalogue moved to Edexcel: no
+ * `E-XXXX` code could ever match one of those keys, and every Edexcel
+ * subject this app actually teaches has had its real specification ingested
+ * before its papers (the documented order, in docs/PAPERS.md). A vocabulary
+ * borrowed from the wrong board is worse than none, so a subject with no
+ * specification yet gets nothing here — classifyBatch's caller is expected
+ * to have warned loudly about that already, rather than quietly relabelling
+ * questions against Cambridge's topic list.
+ *
+ * 2, not 4: a subject organised by exam component rather than content topic
+ * (English Language A has exactly two: non-fiction/transactional writing,
+ * poetry-prose/imaginative writing) has a real, useful, just SHORT
+ * vocabulary. Requiring 4 discarded it entirely in favour of nothing.
  */
-const FALLBACK_TOPICS = {
-  "0625": ["Motion, forces and energy", "Thermal physics", "Waves", "Electricity and magnetism",
-           "Nuclear physics", "Space physics"],
-  "0620": ["States of matter", "Atoms, elements and compounds", "Stoichiometry", "Electrochemistry",
-           "Chemical energetics", "Chemical reactions", "Acids, bases and salts",
-           "The Periodic Table", "Metals", "Chemistry of the environment", "Organic chemistry",
-           "Experimental techniques and chemical analysis"],
-  "0610": ["Characteristics of living organisms", "Organisation of the organism", "Movement in and out of cells",
-           "Biological molecules", "Enzymes", "Plant nutrition", "Human nutrition", "Transport in plants",
-           "Transport in animals", "Diseases and immunity", "Gas exchange", "Respiration", "Excretion",
-           "Coordination and response", "Drugs", "Reproduction", "Inheritance", "Variation and selection",
-           "Organisms and their environment", "Human influences on ecosystems", "Biotechnology"],
-  "0580": ["Number", "Algebra and graphs", "Coordinate geometry", "Geometry", "Mensuration",
-           "Trigonometry", "Transformations and vectors", "Probability", "Statistics"],
-  "0455": ["The basic economic problem", "The allocation of resources", "Microeconomic decision makers",
-           "Government and the macroeconomy", "Economic development", "International trade and globalisation"],
-  "0450": ["Understanding business activity", "People in business", "Marketing", "Operations management",
-           "Financial information and decisions", "External influences on business activity"],
-  "0478": ["Data representation", "Data transmission", "Hardware", "Software", "The internet and its uses",
-           "Automated and emerging technologies", "Algorithm design and problem-solving",
-           "Programming", "Databases", "Boolean logic"],
-  "0460": ["Population and settlement", "The natural environment", "Economic development",
-           "Geographical skills"],
-};
+const MIN_REAL_TOPICS = 2;
 
-/** Topics for a subject: real syllabus sections if ingested, else the fallback. */
 export async function topicVocabulary(db, subjectCode) {
   const { data } = await db
     .from("chunks")
@@ -82,8 +72,7 @@ export async function topicVocabulary(db, subjectCode) {
     .limit(500);
 
   const fromSyllabus = [...new Set((data ?? []).map((r) => r.topic).filter(Boolean))];
-  if (fromSyllabus.length >= 4) return fromSyllabus;
-  return FALLBACK_TOPICS[subjectCode] ?? [];
+  return fromSyllabus.length >= MIN_REAL_TOPICS ? fromSyllabus : [];
 }
 
 /* ----------------------------------------------------------- classifying -- */
@@ -124,9 +113,17 @@ Rules:
  * request is 40x cheaper in quota than 40 requests.
  */
 export async function classifyBatch(parts, topics, subjectName) {
-  if (!LLM_CLASSIFY || topics.length === 0 || parts.length === 0) {
+  if (parts.length === 0) return [];
+  if (topics.length === 0) {
+    // Silently tagging every question null here used to look identical to a
+    // subject with no weak topics at all: the weakness profile and "drill
+    // what I'm bad at" mock just went quiet. A subject only reaches this with
+    // no syllabus ingested AND no fallback vocabulary for its code, which
+    // should never happen once its specification has been loaded first.
+    console.warn(`  ! NO TOPIC VOCABULARY for ${subjectName}: every question below is going in untagged. Ingest its syllabus first.`);
     return parts.map(() => ({ topic: null, refs: [] }));
   }
+  if (!LLM_CLASSIFY) return parts.map(() => ({ topic: null, refs: [] }));
 
   const list = parts.map((p, i) => ({
     i,
@@ -142,7 +139,11 @@ export async function classifyBatch(parts, topics, subjectName) {
         `QUESTIONS:\n${JSON.stringify(list)}`,
       ].join("\n\n"),
       SCHEMA,
-      { system: SYSTEM, maxOutputTokens: 4096 },
+      // 4096 was tight enough that a batch of 25 questions against a subject
+      // with long topic names (observed: Chemistry) sometimes got cut off
+      // mid-JSON, losing every label in that batch rather than just the
+      // questions that didn't fit.
+      { system: SYSTEM, maxOutputTokens: 8192 },
     ));
   } catch (e) {
     console.warn(`  classification failed (${e.message}): questions stay untagged`);

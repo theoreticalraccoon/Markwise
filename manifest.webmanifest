@@ -1,0 +1,26 @@
+{
+  "name": "Markwise: Edexcel International GCSE study assistant",
+  "short_name": "Markwise",
+  "description": "Track your homework, and get answers and marking from the real Pearson Edexcel International GCSE past papers and mark schemes.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fafbfc",
+  "theme_color": "#2563d9",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "src/assets/markwise-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "src/assets/markwise-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

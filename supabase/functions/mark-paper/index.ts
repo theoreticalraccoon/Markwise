@@ -27,7 +27,7 @@
 
 import { preflight, fail, json } from "../_shared/http.ts";
 import { requireUser, adminClient } from "../_shared/db.ts";
-import { claim, QuotaExceeded } from "../_shared/quota.ts";
+import { claim, release, QuotaExceeded } from "../_shared/quota.ts";
 import { generateJSON } from "../_shared/gemini.ts";
 import { readFiles, validate, type Attachment } from "../_shared/files.ts";
 import { MARK_SYSTEM } from "../_shared/prompts.ts";
@@ -37,10 +37,15 @@ You read a student's completed exam paper from photographs or a scan, and
 report both which paper it is and what they wrote.
 
 Identifying the paper:
-- Read the printed header or cover: the year, the exam series (Jun for
-  May/June, Nov for October/November, Mar for February/March), the paper
-  number and variant ("Paper 4 Variant 2" is paper 4 variant 2; "1H" is
-  paper 1). Report only what is printed; use null for anything you cannot see.
+- Read the printed header or cover of a Pearson Edexcel International GCSE
+  paper. paperRef is the paper reference EXACTLY as printed, letters included:
+  "Paper Reference 4PH1/1P" gives "1P", "4MA1/2H" gives "2H", "4PH1/1PR" gives
+  "1PR". Never reduce it to a number: 1F and 1H are different papers, and so
+  are 1P and 1PR.
+- session is the exam series: Jan for January, Jun for May/June, Nov for
+  October/November. The cover prints a date ("Wednesday 15 May 2024"), so work
+  the series out from the month if it is not named. year is the year of that date.
+- Report only what is printed; use null for anything you cannot see.
 
 Transcribing the answers:
 
@@ -64,9 +69,10 @@ const TRANSCRIBE_SCHEMA = {
       type: "object",
       properties: {
         year: { type: "number", nullable: true },
-        session: { type: "string", nullable: true },
+        session: { type: "string", nullable: true, enum: ["Jan", "Jun", "Nov"] },
         paperNo: { type: "number", nullable: true },
         variant: { type: "number", nullable: true },
+        paperRef: { type: "string", nullable: true },
       },
     },
     answers: {
@@ -146,7 +152,7 @@ Deno.serve(async (req) => {
   if (invalid) return fail(req, invalid);
 
   try {
-    await claim(user.id, "markpaper");
+    await claim(user, "markpaper");
   } catch (e) {
     if (e instanceof QuotaExceeded) return fail(req, e.message, 429);
     throw e;
@@ -156,7 +162,7 @@ Deno.serve(async (req) => {
 
   // ---- 1. read: which paper is this, and what did they write? -------------
   interface Read {
-    paper?: { year?: number | null; session?: string | null; paperNo?: number | null; variant?: number | null };
+    paper?: { year?: number | null; session?: string | null; paperNo?: number | null; variant?: number | null; paperRef?: string | null };
     answers: { questionNo: string; answer: string }[];
   }
   let read: Read;
@@ -168,17 +174,19 @@ Deno.serve(async (req) => {
       { system: TRANSCRIBE_SYSTEM },
     );
   } catch (e) {
+    await release(user, "markpaper");
     return fail(req, e instanceof Error ? e.message : "Could not read that paper.", 502);
   }
   const transcribed = (read.answers ?? []).filter((a) => a.answer?.trim());
 
   // ---- 2. match it to a paper we hold -------------------------------------
   const { data: candidates } = await admin.from("papers")
-    .select("id,subject_code,title,code,year,session,paper_no,variant")
+    .select("id,subject_code,title,code,year,session,paper_no,variant,paper_ref,tier,total_marks")
     .eq("subject_code", body.subject).eq("kind", "qp");
 
   const held = candidates ?? [];
   if (!held.length) {
+    await release(user, "markpaper");
     return json(req, {
       error: "no_papers",
       message: "No papers have been added for this subject yet. Add the question paper and its mark scheme under Your papers first.",
@@ -190,6 +198,7 @@ Deno.serve(async (req) => {
     : matchPaper(held, read.paper ?? {});
 
   if (!paper) {
+    await release(user, "markpaper");
     const wanted = describe(read.paper ?? {});
     return json(req, {
       error: "paper_not_held",
@@ -203,33 +212,60 @@ Deno.serve(async (req) => {
     .eq("paper_id", paper.id).eq("kind", "question");
 
   const questions = (qData ?? []) as Question[];
-  if (!questions.length) return fail(req, "That paper has no questions stored.", 409);
+  if (!questions.length) {
+    await release(user, "markpaper");
+    return fail(req, "That paper has no questions stored.", 409);
+  }
 
   questions.sort((a, b) => naturalOrder(a.question_no, b.question_no));
 
   if (!transcribed.length) {
+    await release(user, "markpaper");
     return json(req, {
       error: "no_answers",
       message: "No answers could be read from those images. Try clearer, closer photos of each page.",
     }, 422);
   }
 
-  const answerFor = new Map(transcribed.map((a) => [key(a.questionNo), a.answer.trim()]));
+  const written = new Map(transcribed.map((a) => [key(a.questionNo), a.answer.trim()]));
+
+  /**
+   * What the student wrote for a question part.
+   *
+   * Students often write one answer against "4(b)" for a paper that splits it
+   * into 4(b)(i) and 4(b)(ii). An exact-match lookup called both parts blank
+   * and marked them zero. So when a part has no answer of its own, the nearest
+   * enclosing part's answer is used: each part is still marked against its own
+   * scheme, so nothing is credited that the scheme does not award.
+   */
+  const answerOf = (questionNo: string): string | null => {
+    let n = String(questionNo ?? "");
+    for (;;) {
+      const hit = written.get(key(n));
+      if (hit) return hit;
+      const shorter = n.replace(/\([^)]*\)\s*$/, "");
+      if (shorter === n || !shorter) return null;
+      n = shorter;
+    }
+  };
 
   // ---- 2. mark, in batches ------------------------------------------------
-  const attempted = questions.filter((q) => answerFor.has(key(q.question_no)));
+  const attempted = questions.filter((q) => answerOf(q.question_no) !== null);
   const markable = attempted.filter((q) => q.ms_content);
   const results = new Map<string, { awarded: number; breakdown: unknown[]; feedback: string }>();
+  let batchesRun = 0;
+  let batchesFailed = 0;
 
   for (let i = 0; i < markable.length; i += BATCH_SIZE) {
     const batch = markable.slice(i, i + BATCH_SIZE);
+    batchesRun++;
     const prompt = batch.map((q) => [
       `QUESTION ${q.question_no} (${q.marks ?? 0} marks)`,
       q.content,
       `MARK SCHEME:`,
       q.ms_content,
       `STUDENT ANSWER:`,
-      answerFor.get(key(q.question_no)),
+      answerOf(q.question_no),
     ].join("\n")).join("\n\n---\n\n");
 
     try {
@@ -247,15 +283,23 @@ Deno.serve(async (req) => {
       }
     } catch (e) {
       console.error(`batch ${i} failed:`, e);
+      batchesFailed++;
       // One bad batch must not lose the rest of the paper.
     }
+  }
+
+  // Every batch failed: the student got nothing, so give the allowance back
+  // rather than saving and billing a paper of zeros.
+  if (batchesRun > 0 && batchesFailed === batchesRun) {
+    await release(user, "markpaper");
+    return fail(req, "Marking is unavailable right now. Your photos were not used up: try again shortly.", 502);
   }
 
   // ---- assemble -----------------------------------------------------------
   let awarded = 0;
   let total = 0;
   const perQuestion = questions.map((q) => {
-    const answer = answerFor.get(key(q.question_no)) ?? null;
+    const answer = answerOf(q.question_no) ?? null;
     const marked = results.get(key(q.question_no));
     const cap = q.marks ?? 0;
     total += cap;
@@ -283,7 +327,12 @@ Deno.serve(async (req) => {
   let grade: string | null = null;
   try {
     const { data } = await admin.rpc("predict_grade", {
-      p_subject: paper.subject_code, p_paper_no: paper.paper_no ?? 1, p_pct: pct,
+      p_subject: paper.subject_code,
+      p_paper_ref: paper.paper_ref ?? "",
+      p_pct: pct,
+      p_tier: paper.tier ?? null,
+      p_year: paper.year ?? null,
+      p_session: paper.session ?? null,
     });
     grade = (data as string | null) ?? null;
   } catch { /* boundaries are optional */ }
@@ -307,8 +356,14 @@ Deno.serve(async (req) => {
     if (error) console.error("attempts insert failed:", error.message);
   }
 
-  return json(req, {
-    paper: { id: paper.id, title: paper.title, code: paper.code, subject: paper.subject_code },
+  // ---- keep the paper itself ----------------------------------------------
+  // The per-question attempts above feed the weakness profile, but they do not
+  // reconstitute the paper. Without this row a refresh destroyed the whole
+  // result, which is an hour of the student's work and a minute of ours.
+  const summary = {
+    paper_id: paper.id,
+    subject_code: paper.subject_code,
+    title: paper.title,
     awarded,
     total,
     pct,
@@ -317,12 +372,32 @@ Deno.serve(async (req) => {
     marked: rows.length,
     unmarkable: perQuestion.filter((q) => q.status === "no_markscheme").length,
     questions: perQuestion,
+  };
+
+  let attemptId: string | null = null;
+  const { data: savedPaper, error: saveError } = await user.db
+    .from("paper_attempts").insert(summary).select("id").single();
+  if (saveError) console.error("paper_attempts insert failed:", saveError.message);
+  else attemptId = savedPaper.id;
+
+  return json(req, {
+    id: attemptId,
+    paper: { id: paper.id, title: paper.title, code: paper.code, subject: paper.subject_code },
+    awarded,
+    total,
+    pct,
+    grade,
+    answered: attempted.length,
+    marked: rows.length,
+    unmarkable: summary.unmarkable,
+    questions: perQuestion,
   });
 });
 
 interface HeldPaper {
-  id: string; title: string; code: string | null;
+  id: string; subject_code: string; title: string; code: string | null;
   year: number | null; session: string | null; paper_no: number | null; variant: number | null;
+  paper_ref?: string | null; tier?: string | null; total_marks?: number | null;
 }
 
 /**
@@ -336,13 +411,32 @@ interface HeldPaper {
  */
 function matchPaper(
   held: HeldPaper[],
-  want: { year?: number | null; session?: string | null; paperNo?: number | null; variant?: number | null },
+  want: {
+    year?: number | null; session?: string | null; paperNo?: number | null;
+    variant?: number | null; paperRef?: string | null;
+  },
 ): HeldPaper | null {
+  // A paper reference read off the cover is decisive. "1H" and "1F" are set the
+  // same day for different tiers, so once the reference is known only a paper
+  // with that exact reference can be the one, and it must not contradict the
+  // year or series either. Falling back to "paper 1" here would pick whichever
+  // tier came first.
+  const ref = want.paperRef?.trim().toUpperCase();
+  if (ref) {
+    const sameRef = held.filter((p) => (p.paper_ref ?? "").toUpperCase() === ref);
+    const fits = sameRef.filter((p) =>
+      (want.year == null || p.year === want.year) &&
+      (want.session == null || p.session === want.session)
+    );
+    if (fits.length === 1) return fits[0];
+    return null;   // several series fit, or the reference read is not one we hold
+  }
+
   const known = [want.year, want.session, want.paperNo].filter((v) => v != null).length;
   if (known === 0) return held.length === 1 ? held[0] : null;
 
-  let best: HeldPaper | null = null;
   let bestScore = 0;
+  let best: HeldPaper[] = [];
 
   for (const p of held) {
     let score = 0;
@@ -362,17 +456,23 @@ function matchPaper(
 
     if (score > bestScore) {
       bestScore = score;
-      best = p;
+      best = [p];
+    } else if (score === bestScore && score > 0) {
+      best.push(p);
     }
   }
-  // At least two identifying fields had to agree.
-  return bestScore >= 5 ? best : null;
+  // At least two identifying fields had to agree, and exactly one paper fits:
+  // a tie between 1F and 1H is not a match, it is a question to put to the student.
+  return bestScore >= 5 && best.length === 1 ? best[0] : null;
 }
 
-function describe(p: { year?: number | null; session?: string | null; paperNo?: number | null; variant?: number | null }): string {
+function describe(p: {
+  year?: number | null; session?: string | null; paperNo?: number | null;
+  variant?: number | null; paperRef?: string | null;
+}): string {
   const bits = [
     p.session && p.year ? `${p.session} ${p.year}` : p.year ? String(p.year) : null,
-    p.paperNo ? `Paper ${p.paperNo}${p.variant ?? ""}` : null,
+    p.paperRef ? `Paper ${p.paperRef}` : p.paperNo ? `Paper ${p.paperNo}${p.variant ?? ""}` : null,
   ].filter(Boolean);
   return bits.length ? bits.join(" ") : "a paper we could not identify";
 }

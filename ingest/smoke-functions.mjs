@@ -5,8 +5,9 @@
  *   node smoke-functions.mjs      (from ingest/)
  *
  * Creates a throwaway confirmed user, signs in as them, and exercises ask /
- * mark / mock over HTTP exactly as the browser does: same auth header, same
- * SSE parsing: then deletes the user again. Run it after every deploy: the
+ * mark / mock / mark-mock over HTTP exactly as the browser does: same auth
+ * header, same SSE parsing, then deletes the user again. Run it after every
+ * deploy: the
  * unit tests cannot catch a missing secret, a retired model, or an RLS policy
  * that blocks the service.
  *
@@ -43,6 +44,16 @@ try {
   console.log("signed in\n");
 
   const headers = { Authorization: `Bearer ${token}`, apikey: ANON, "Content-Type": "application/json" };
+
+  const asUser = createClient(URL, ANON, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false },
+  });
+  /** How many calls on `route` this user has spent today. */
+  const usageFor = async (route) => {
+    const { data } = await asUser.rpc("my_ai_usage");
+    return (data ?? []).find((r) => r.route === route)?.used ?? 0;
+  };
 
   /* ---------------------------------------------------------------- ask -- */
   console.log("▸ ask  (streamed, grounded)");
@@ -86,6 +97,7 @@ try {
       }
       if (err) { console.log(`   FAIL generation: ${err}`); failures++; }
       else if (!text) { console.log("   FAIL: no text streamed"); failures++; }
+      else if (!citations.length) { console.log("   FAIL: no corpus citations for a covered syllabus question"); failures++; }
       else {
         console.log(`   OK  ${citations.length} citations, ${text.length} chars, first token ${first}ms`);
         console.log(`   cited: ${citations.slice(0, 3).map((c) => c.label).join(" | ")}`);
@@ -101,7 +113,7 @@ try {
       method: "POST",
       headers,
       body: JSON.stringify({
-        question: "E-4MA1_s24_qp_13 Q1(a)",
+        question: "E-4MA1_s24_qp_1H Q1(a)",
         subject: "E-4MA1",
         answer: "3n - 2",
       }),
@@ -136,15 +148,59 @@ try {
     }
   }
 
+  /* ---------------------------------------------------------- mark-mock -- */
+  console.log("\n\u25b8 mark-mock  (whole paper, one allowance)");
+  {
+    // Build a small mock, answer its first question badly on purpose, and
+    // check the whole paper comes back marked from a single call.
+    const made = await fetch(`${FN}/mock`, {
+      method: "POST", headers,
+      body: JSON.stringify({ subject: "E-4MA1", marks: 12 }),
+    }).then((r) => r.json()).catch(() => ({}));
+
+    if (!made.id) {
+      console.log("   SKIP: no mock to mark");
+    } else {
+      const answers = Object.fromEntries(
+        (made.questions ?? []).map((q) => [String(q.n), "I do not know, but I would use the formula."]),
+      );
+      const res = await fetch(`${FN}/mark-mock`, {
+        method: "POST", headers,
+        body: JSON.stringify({ mockId: made.id, answers }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { console.log(`   FAIL ${res.status}: ${body.message ?? body.error ?? ""}`); failures++; }
+      else {
+        console.log(`   OK  ${body.awarded}/${body.total} (${body.pct}%), ${body.marked} recorded${body.grade ? `, grade ${body.grade}` : ""}`);
+        if (body.failed) { console.log(`   FAIL: ${body.failed} question(s) failed to mark`); failures++; }
+      }
+    }
+  }
+
+  /* ------------------------------------------------------ quota refunds -- */
+  console.log("\n\u25b8 quota refund on refusal");
+  {
+    // A mark request for a question that cannot exist must not be charged for.
+    const before = await usageFor("mark");
+    const res = await fetch(`${FN}/mark`, {
+      method: "POST", headers,
+      body: JSON.stringify({
+        question: "9999_s99_qp_99 Q42(z)",
+        subject: "E-4MA1",
+        answer: "Something.",
+      }),
+    });
+    await res.json().catch(() => ({}));
+    const after = await usageFor("mark");
+    if (res.ok) { console.log("   FAIL: a question that does not exist was marked anyway"); failures++; }
+    else if (after > before) { console.log(`   FAIL: refused but still charged (${before} \u2192 ${after})`); failures++; }
+    else console.log(`   OK  refused and refunded (still ${after} used)`);
+  }
+
   /* -------------------------------------------------------------- quota -- */
   console.log("\n▸ usage accounting");
   {
-    const { data } = await anon.auth.getSession();
-    const user = createClient(URL, ANON, {
-      global: { headers: { Authorization: `Bearer ${data.session.access_token}` } },
-      auth: { persistSession: false },
-    });
-    const { data: usage, error } = await user.rpc("my_ai_usage");
+    const { data: usage, error } = await asUser.rpc("my_ai_usage");
     if (error) { console.log(`   FAIL ${error.message}`); failures++; }
     else console.log("   " + usage.map((u) => `${u.route} ${u.used}/${u.per_day}`).join("  ·  "));
   }

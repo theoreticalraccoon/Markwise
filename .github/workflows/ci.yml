@@ -47,6 +47,6 @@ jobs:
         # on dependency resolution before it reaches our code, which is why
         # this step used to be continue-on-error.
         run: |
-          curl -fsSL https://deno.land/install.sh | DENO_INSTALL="$HOME/.deno" sh -s v2.1.4
+          curl -fsSL https://deno.land/install.sh | DENO_INSTALL="$HOME/.deno" sh -s v2.9.7
           export PATH="$HOME/.deno/bin:$PATH"
           deno check --node-modules-dir=auto supabase/functions/*/index.ts

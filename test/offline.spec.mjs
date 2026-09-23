@@ -15,12 +15,15 @@ const api = await import(`data:text/javascript;base64,${Buffer.from(source).toSt
 
 function environment(t) {
   const values = new Map();
+  const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", {
+    value: { onLine: true }, configurable: true, writable: true,
+  });
   globalThis.localStorage = {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
     removeItem: (key) => values.delete(key),
   };
-  navigator.onLine = true;
   api.store.user = { id: "alice" };
   let calls = 0;
   const paper = { id: "paper", user_id: "alice", status: "ready", questions: [{ n: 1, text: "2 + 3", marks: 2 }] };
@@ -33,7 +36,12 @@ function environment(t) {
     for (const method of ["select", "eq", "order", "maybeSingle", "single", "update", "delete"]) q[method] = () => q;
     return q;
   } };
-  t.after(() => { delete globalThis.localStorage; delete globalThis.testDB; delete navigator.onLine; });
+  t.after(() => {
+    delete globalThis.localStorage;
+    delete globalThis.testDB;
+    if (previousNavigator) Object.defineProperty(globalThis, "navigator", previousNavigator);
+    else delete globalThis.navigator;
+  });
   return { paper, calls: () => calls };
 }
 

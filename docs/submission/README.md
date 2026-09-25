@@ -5,7 +5,7 @@ planner with an AI assistant, mock-exam generator and answer marker. Every answe
 real past papers, mark schemes and examiner reports: 11,522 question parts across 19 subjects,
 June 2021 to June 2025.
 
-Live app: https://markwise-tau.vercel.app (private deployment; sign-up needed)
+Live app: https://markwise-sl.vercel.app/ (private deployment; sign-up needed)
 
 Everything below was generated from the real system on 25 September 2026 unless a file says
 otherwise.

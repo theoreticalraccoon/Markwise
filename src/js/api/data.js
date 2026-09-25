@@ -1,9 +1,4 @@
-/**
- * Every table read and write the app makes.
- *
- * Kept in one module so the data contract is auditable in one place; RLS means
- * none of these can touch another user's rows even if a bug asked them to.
- */
+// Every table read and write, in one place. RLS keeps each user to their own rows.
 
 import { sb } from "./client.js";
 import { store } from "../store.js";
@@ -71,14 +66,7 @@ export async function loadCatalogue() {
   return store.subjects;
 }
 
-/**
- * May this account add papers to the shared library?
- *
- * Adding a paper replaces questions and mark schemes that every student is
- * marked against, so the server restricts it to whoever runs the deployment.
- * The screens ask so they can explain that up front, rather than letting a
- * student upload a file and only then be told no. The server still decides.
- */
+/** Can this account add papers to the shared library? The UI asks up front; the server decides. */
 export async function loadAdmin(userId) {
   if (offline()) { store.isAdmin = false; return false; }
   const { data, error } = await sb.rpc("is_admin", { p_user: userId });
@@ -237,13 +225,7 @@ const CHUNK_FIELDS =
   "id,subject_code,kind,paper_code,year,session,paper_no,variant,question_no," +
   "question_root,marks,command_word,topic,syllabus_refs,content,ms_content,er_content,page";
 
-/**
- * Browse the corpus.
- *
- * `limit` is clamped here rather than trusted from the caller: this is the one
- * query in the app that can ask for an unbounded slice of a table with
- * hundreds of thousands of rows.
- */
+/** Browse the corpus. `limit` is clamped: this is the one query that could ask for everything. */
 export async function searchLibrary({
   subject, query = "", topic = null, paperId = null, markableOnly = false,
   limit = 25, offset = 0,
@@ -256,9 +238,7 @@ export async function searchLibrary({
       { count: "estimated" },
     )
     .eq("kind", "question")
-    // A complete, natural order with a tiebreaker. Ordering by the raw question
-    // number put 10 before 2, and with no tiebreaker paging across papers could
-    // repeat one row and skip another.
+    // Natural order with a tiebreaker, so paging never repeats or skips a row.
     .order("year", { ascending: false })
     .order("session", { ascending: false })
     .order("paper_id")
@@ -270,14 +250,12 @@ export async function searchLibrary({
   if (topic) q = q.eq("topic", topic);
   if (paperId) q = q.eq("paper_id", paperId);
   if (markableOnly) q = q.not("ms_content", "is", null);
-  // Keyword search only: semantic search costs a Gemini call, so it belongs
-  // to the assistant, not to browsing.
+  // Keyword only: semantic search costs a Gemini call.
   if (query.trim()) q = q.textSearch("fts", query.trim(), { type: "websearch" });
 
   const { data, error, count } = await q;
   fail("Search failed", error);
-  // One extra row was requested so "is there another page?" is a fact, not a
-  // guess from whether this page came back full.
+  // One extra row tells us whether there's another page.
   const all = data ?? [];
   return { rows: all.slice(0, size), total: count ?? 0, pageSize: size, hasMore: all.length > size };
 }

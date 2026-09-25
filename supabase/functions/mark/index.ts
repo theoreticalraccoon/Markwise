@@ -1,19 +1,9 @@
 /**
- * POST /functions/v1/mark
+ * POST /functions/v1/mark: mark one answer against the real scheme, found by
+ * chunkId (picked in the app) or from a typed reference. The result goes into
+ * attempts, which feeds the student's weak-topic profile.
  *
- * Marks one answer against the real mark scheme.
- *
- * Two entry paths, because students arrive two ways:
- *   - chunkId. They picked the question in the library or a mock. Exact.
- *   - question. They typed or pasted it ("0625 Jun 2019 P42 Q4(b)", or the
- *     question text itself). Retrieval finds the paper, and the response says
- *     which question it matched so a wrong match is visible, not silent.
- *
- * The result is written to `attempts`, which the mastery trigger folds into the
- * student's weakness profile. This is the loop that makes every other feature
- * personal.
- *
- * Body: { answer, chunkId? , question?, subject?, mockId? }
+ * Body: { answer, chunkId?, question?, subject?, mockId? }
  */
 
 import { preflight, fail, json } from "../_shared/http.ts";
@@ -108,9 +98,7 @@ Deno.serve(async (req) => {
     return fail(req, e instanceof Error ? e.message : "Could not find that question.", 502);
   }
 
-  // The student named a question but more than one paper still fits ("June 2024
-  // Q4" when a 1H and a 2H both have a Q4). Marking against a guessed paper
-  // means marking against another paper's scheme, so ask instead of guessing.
+  // More than one paper fits (1H and 2H both have Q4): ask, don't guess.
   const ambiguous = (parts as { ambiguous?: string[] }).ambiguous;
   if (ambiguous?.length && !body.chunkId) {
     await release(user, "mark");
@@ -161,15 +149,12 @@ Deno.serve(async (req) => {
     return fail(req, e instanceof Error ? e.message : "Marking failed.", 502);
   }
 
-  // The model is told never to exceed the total; clamp anyway, because a
-  // marking tool that can award 9/6 is worse than useless.
+  // Clamp anyway: a marker that can award 9/6 is worse than useless.
   const cap = total || result.total || 0;
   const awarded = Math.max(0, Math.min(cap, Number(result.awarded) || 0));
 
   const questionRef = label(target);
-  // The corpus topic first: it comes from the syllabus vocabulary. A topic the
-  // model made up ("Forces" vs "Forces and motion") splits one topic into two in
-  // the student's mastery table.
+  // Use the corpus topic, from the spec vocabulary, so mastery doesn't split.
   const topic = target.topic ?? result.topic ?? null;
 
   // ---- record -------------------------------------------------------------

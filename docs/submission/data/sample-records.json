@@ -1,0 +1,120 @@
+{
+  "note": "Sample records from the Markwise corpus. Exam content (c) Pearson Education Ltd, reproduced as a short excerpt to show the data shape.",
+  "question_chunk": {
+    "subject_code": "E-4PH1",
+    "paper_code": "E-4PH1_s25_qp_1PR",
+    "year": 2025,
+    "session": "Jun",
+    "paper_ref": "1PR",
+    "tier": null,
+    "question_no": "8(a)",
+    "marks": 1,
+    "command_word": "give",
+    "topic": "Astrophysics",
+    "syllabus_refs": [],
+    "content": "This is a question about the Solar System.\nGive the name of the galaxy the Solar System is in.",
+    "ms_content": "Milky Way; 1",
+    "er_content": "Question 8(a)\nAlmost all candidates could name the Milky Way as the home galaxy of our Solar System.\nInt GCSE Physics 4PH1 1PR\nQuestion 8(b)i\nMany candidates correctly demonstrated their knowledge of which object orbits which in our\nSolar System. As long as their response was clear in showing that Neptune orbits the Sun and\nTriton orbits Neptune, then the response was accepted.\nInt GCSE Physics 4PH1 1PR\nThis candidate scored a mark for indicating that Neptune (N) orbits the Sun. Although Triton\n"
+  },
+  "syllabus_chunk": {
+    "subject_code": "E-4PH1",
+    "kind": "syllabus",
+    "topic": "Solids, liquids and gases",
+    "syllabus_refs": [
+      "5(d)"
+    ],
+    "content": "Solids, liquids and gases: 5(d) Ideal gas molecules\nStudents should:\n5.15 explain how molecules in a gas have random motion and that they exert a force, and\nhence a pressure, on the walls of a container\n5.16 understand why there is an absolute zero of temperature, which is –273 °C\n5.17 describe the Kelvin scale of temperature and be able to convert between the Kelvin\nand Celsius scales\n5.18 understand why an increase in temperature results in an increase in the average\nspeed of gas molecules\n5.19 know that the Kelvin temperature of a gas is proportional to the average kinetic\nenergy of its mol"
+  },
+  "grade_boundaries_4PH1_1P_June_2024": [
+    {
+      "subject_code": "E-4PH1",
+      "year": 2024,
+      "session": "Jun",
+      "paper_ref": "1P",
+      "tier": "",
+      "grade": "9",
+      "min_marks": 83,
+      "total_marks": 110
+    },
+    {
+      "subject_code": "E-4PH1",
+      "year": 2024,
+      "session": "Jun",
+      "paper_ref": "1P",
+      "tier": "",
+      "grade": "8",
+      "min_marks": 73,
+      "total_marks": 110
+    },
+    {
+      "subject_code": "E-4PH1",
+      "year": 2024,
+      "session": "Jun",
+      "paper_ref": "1P",
+      "tier": "",
+      "grade": "7",
+      "min_marks": 63,
+      "total_marks": 110
+    },
+    {
+      "subject_code": "E-4PH1",
+      "year": 2024,
+      "session": "Jun",
+      "paper_ref": "1P",
+      "tier": "",
+      "grade": "6",
+      "min_marks": 56,
+      "total_marks": 110
+    },
+    {
+      "subject_code": "E-4PH1",
+      "year": 2024,
+      "session": "Jun",
+      "paper_ref": "1P",
+      "tier": "",
+      "grade": "5",
+      "min_marks": 49,
+      "total_marks": 110
+    },
+    {
+      "subject_code": "E-4PH1",
+      "year": 2024,
+      "session": "Jun",
+      "paper_ref": "1P",
+      "tier": "",
+      "grade": "4",
+      "min_marks": 43,
+      "total_marks": 110
+    },
+    {
+      "subject_code": "E-4PH1",
+      "year": 2024,
+      "session": "Jun",
+      "paper_ref": "1P",
+      "tier": "",
+      "grade": "3",
+      "min_marks": 36,
+      "total_marks": 110
+    },
+    {
+      "subject_code": "E-4PH1",
+      "year": 2024,
+      "session": "Jun",
+      "paper_ref": "1P",
+      "tier": "",
+      "grade": "2",
+      "min_marks": 30,
+      "total_marks": 110
+    },
+    {
+      "subject_code": "E-4PH1",
+      "year": 2024,
+      "session": "Jun",
+      "paper_ref": "1P",
+      "tier": "",
+      "grade": "1",
+      "min_marks": 24,
+      "total_marks": 110
+    }
+  ]
+}

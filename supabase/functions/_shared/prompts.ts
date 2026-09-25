@@ -1,13 +1,6 @@
-/**
- * System prompts.
- *
- * The single rule every prompt here enforces: the sources block is the only
- * admissible evidence. A model that is allowed to "helpfully" fill gaps from
- * its pretraining produces exactly the forum-grade answer this app exists to
- * replace, so each prompt states the boundary and gives an explicit escape
- * hatch ("say the corpus doesn't cover it") rather than leaving the model to
- * choose between silence and invention.
- */
+// System prompts. The sources block is the only admissible evidence, and each
+// prompt gives the model an explicit way out ("the papers don't cover this")
+// so it never has to choose between silence and invention.
 
 const GROUNDING = `
 You are Markwise, a Pearson Edexcel International GCSE study assistant. You are given SOURCES: verbatim

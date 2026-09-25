@@ -1,15 +1,8 @@
 /**
- * Assistant. One chat for everything you'd ask a tutor.
- *
- * Ask and "mark my answer" used to be two separate screens with two separate
- * forms, which forced the student to classify their own question before they
- * could type it. They are one box now: what you type decides what happens.
- *
- * A message that names a question and carries a written answer is marked
- * against the real mark scheme and comes back as a marked card. Everything
- * else is answered from the papers with citations. The routing happens here
- * rather than in the model, so the marked card is real structured data and not
- * a paragraph pretending to be one.
+ * Assistant: one chat box for everything you'd ask a tutor. A message that
+ * names a question and carries an answer gets marked against the real scheme
+ * and comes back as a card; anything else is answered from the papers with
+ * citations. Routing happens here, not in the model, so the card is real data.
  */
 
 import { esc, on, renderMarkdown, scrollToBottom } from "../ui/dom.js";
@@ -47,8 +40,7 @@ export async function render(container, { query = {} } = {}) {
   wire();
   paint();
 
-  // `q` asks it for you; `draft` only fills the box, which is what the Library
-  // wants when it hands over a question for you to answer in your own words.
+  // `q` asks for you; `draft` only fills the box (the Library uses it).
   const input = root.querySelector("#chatInput");
   if (query.q) {
     input.value = query.q;
@@ -117,8 +109,7 @@ function wire() {
     send();
   });
 
-  // Enter sends, Shift+Enter is a newline, and the box grows with the answer
-  // so pasting six lines of working stays readable.
+  // Enter sends, Shift+Enter adds a line, and the box grows with the answer.
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -170,13 +161,7 @@ function wire() {
 
 /* --------------------------------------------------------------- painting -- */
 
-/**
- * What this subject can actually be answered from.
- *
- * Shown permanently rather than buried, because it is the whole claim of the
- * app: the answers below came out of these documents, and when there are none
- * the student should see that before they ask rather than after.
- */
+// Always show what this subject can be answered from, before the student asks.
 function paintGrounding() {
   const el = root?.querySelector("#chatGrounding");
   if (!el) return;
@@ -189,8 +174,7 @@ function paintGrounding() {
 }
 
 function paint() {
-  // A streamed reply keeps arriving for a moment after the student navigates
-  // away, and by then this view's markup has been replaced by the next one.
+  // A stream can keep arriving after the student has navigated away.
   const thread = root?.querySelector("#chatThread");
   if (!thread) return;
 
@@ -266,9 +250,7 @@ function messageHTML(m, i) {
   if (m.kind === "note") {
     return `<div class="msg model"><p class="msg-note">${esc(m.content)}</p></div>`;
   }
-  // The typing dots mean "still coming". A message that has an error is not
-  // still coming, and leaving them running was the bug that made every failed
-  // marking attempt look like it was thinking forever.
+  // Typing dots mean "still coming". An errored message isn't.
   const pending = !m.content && !m.error;
   return `
     <div class="msg model">
@@ -335,8 +317,6 @@ function markCard(r) {
       </div>
     </div>`;
 }
-
-/* ---------------------------------------------------------------- routing -- */
 
 /* ---------------------------------------------------------------- sending -- */
 
@@ -407,9 +387,8 @@ async function runMark(text) {
       paint();
       return;
     }
-    // No mark scheme, or no matching question: answering the message as a
-    // question is more useful than a dead end. The placeholder becomes a
-    // one-line note rather than an empty bubble hanging above the answer.
+    // No scheme or no matching question: answer it as a question instead, and
+    // leave a one-line note rather than an empty bubble.
     if (e?.code === "not_found" || e?.code === "no_markscheme") {
       drop();
       state.messages.push({
@@ -431,8 +410,7 @@ async function runAsk(text, mode = "ask") {
   state.messages.push(reply);
   paint();
 
-  // Mark cards and the app's own notes are not conversation: sending them back
-  // as model turns teaches the model to imitate them.
+  // Mark cards and app notes aren't conversation; don't feed them back as turns.
   const history = state.messages
     .slice(0, -2)
     .filter((m) => m.content && m.kind !== "mark" && m.kind !== "note")
@@ -591,12 +569,7 @@ async function loadHistoryPage(page) {
   paint();
 }
 
-/**
- * Forget the conversation. Called on sign-in and sign-out: this module state
- * outlives a session, and the next student on a shared computer would otherwise
- * open the assistant onto the previous student's chat, and a follow-up would
- * post the old thread's id.
- */
+/** Forget the conversation on sign-in/out, so a shared computer doesn't show the last student's chat. */
 export function invalidate() {
   state.controller?.abort();
   state = { threadId: null, subject: null, messages: [], historyPage: 0, hasOlder: false, busy: false, controller: null };

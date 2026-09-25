@@ -1,14 +1,5 @@
--- ============================================================================
--- Markwise: a real sort order for questions.
---
--- question_no is text, so ORDER BY question_no puts 10 before 2 and (b) before
--- (a) once numbering has letters, and a page of library results was assembled
--- in that order. It also had no tiebreaker, so paging across papers could show
--- a row twice and skip another.
---
--- q_sort is the same key question_siblings sorts by, stored so PostgREST can
--- order on it. Safe to run more than once.
--- ============================================================================
+-- A real sort key for questions. As text, "10" sorted before "2". q_sort is the
+-- key question_siblings uses, stored so PostgREST can order on it. Idempotent.
 
 alter table public.chunks
   add column if not exists q_sort text

@@ -1,0 +1,33 @@
+
+> markwise@1.0.0 test:browser
+> node --env-file-if-exists=ingest/.env ingest/smoke-browser.mjs
+
+serving https://markwise-tau.vercel.app
+
+  ok    sign in
+  ok    onboarding: pick subjects
+  ok    planner: add a task
+  ok    planner: tick, untick, tuition tab
+  ok    planner: multiple tasks and category colours
+  ok    mock: answers survive reloading the app
+  ok    mock: current paper reopens offline with answers and timer
+  ok    assistant: renders with composer at the bottom
+  ok    assistant: answers a question
+  ok    assistant: long history is paged, newest messages first
+  ok    mock: subject is the only input
+  ok    mark a paper: three steps, and a history
+  ok    library: browse the corpus
+  ok    recall: a card, revealed and graded
+  ok    calendar: month grid and week strip
+  ok    papers: reachable from settings; adding is admin-only
+  ok    planner: spines and equal card heights
+  ok    progress
+  ok    progress: per-subject grade history
+  ok    settings
+  ok    mobile: chat composer stays on screen
+  ok    responsive workspace: fonts, themes and route widths
+  ok    sign out: saved offline work is removed
+
+throwaway user deleted.
+
+Browser: every route renders and every interaction works.

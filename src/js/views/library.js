@@ -1,17 +1,6 @@
-/**
- * Library: browse the corpus itself.
- *
- * Everything else in Markwise puts a model between the student and the
- * documents. This screen does not. It is the corpus, searchable, with the
- * mark scheme and the examiner's commentary attached to every question, and it
- * is the screen that makes the app's central claim checkable: if the assistant
- * cites 0625 Jun 2019 P42 Q4(b), you can come here and read it.
- *
- * Search is keyword only. Semantic search costs a Gemini call and belongs to
- * the assistant; browsing should be free and instant. "More like this" is the
- * exception, and it is free too: pgvector neighbours of a row that is already
- * embedded need no new embedding.
- */
+// Library: the corpus itself, no model in between. If the assistant cites
+// 4PH1 Jun 2024 Paper 1P Q4(b), you can read it here. Search is keyword only;
+// "more like this" uses stored embeddings, so neither costs a Gemini call.
 
 import { esc, on, debounce } from "../ui/dom.js";
 import { toast, openModal, emptyState, skeleton, spinner } from "../ui/feedback.js";
@@ -24,11 +13,7 @@ import { paperLabel, markPill } from "../lib/exam.js";
 
 const PAGE = 25;
 
-/**
- * One option per corpus, not per course. "Physics" and "Single Science
- * Physics" answer from the same papers, and listing both produced two options
- * with the same value: both marked selected, the last one silently winning.
- */
+/** One option per corpus: Physics and Single Science Physics share papers, and duplicate values broke the select. */
 function subjectOptions(subjects) {
   const seen = new Set();
   return subjects
@@ -313,8 +298,7 @@ async function openQuestion(id) {
           <div id="libSimilar"></div>
         </div>`;
 
-      // Practising a question is just the assistant with the reference and the
-      // question already in the box: one marking flow, not two.
+      // Practising a question just opens the assistant with it pre-filled.
       target.querySelector("[data-practise]").addEventListener("click", () => {
         const ref = paperLabel(c).replaceAll(" · ", " ");
         navigate(`assistant?subject=${encodeURIComponent(c.subject_code)}&draft=${encodeURIComponent(

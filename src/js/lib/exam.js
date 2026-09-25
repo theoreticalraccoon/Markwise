@@ -1,47 +1,23 @@
-/**
- * How exam material is written on screen.
- *
- * One place, so the library, recall, the assistant and the mock paper all say
- * the same thing the same way. Before this each screen built its own label from
- * the internal paper code, which showed students "E-4MA1_s24_qp_1H Q1(a)": a
- * filename, with the board prefix the repo uses to tell boards apart.
- *
- * What a student recognises is the paper as Pearson prints it:
- *
- *   4PH1 · Jun 2024 · Paper 1P · Q3(b)
- *
- * and marks the way the paper prints them, in brackets: (3).
- */
+// How exam material is labelled on screen, so every view says it the same way
+// Pearson does: "4PH1 · Jun 2024 · Paper 1P · Q3(b)", marks as (3).
 
 /** "E-4PH1" -> "4PH1". The board prefix is internal; students say 4PH1. */
 export function displayCode(code) {
   return String(code ?? "").replace(/^[A-Z]-/, "");
 }
 
-/**
- * The paper reference, from the paper code.
- *
- * "E-4PH1_s24_qp_1P" -> "1P". It is the last of four parts; a syllabus code has
- * fewer, and has no reference.
- */
+/** "E-4PH1_s24_qp_1P" -> "1P". Syllabus codes have no reference. */
 export function paperRefOf(paperCode) {
   const parts = String(paperCode ?? "").split("_");
   return parts.length === 4 ? parts[3].toUpperCase() : null;
 }
 
-/**
- * "4PH1 · Jun 2024 · Paper 1P · Q3(b)"
- *
- * Accepts a chunk row, a citation, or anything shaped like one. Every part is
- * optional, so a row missing its year or paper still gives a readable label.
- */
+/** "4PH1 · Jun 2024 · Paper 1P · Q3(b)" from a chunk, citation or similar. Missing parts are skipped. */
 export function paperLabel(row, { question = true } = {}) {
   const code = row.subject_code ?? String(row.paper_code ?? "").split("_")[0];
   const ref = row.paper_ref || paperRefOf(row.paper_code);
 
-  // Some queries return only the paper code. The series and year are in it
-  // ("E-4PH1_s24_qp_1P": s = May/June, 24 = 2024), so read them from there
-  // rather than showing a label with no date.
+  // Some queries only return the code; the series and year are in it.
   let { session, year } = row;
   if (!session || !year) {
     const m = String(row.paper_code ?? "").match(/_([jmsw])(\d{2})_/);

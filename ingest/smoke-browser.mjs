@@ -1,15 +1,9 @@
 /**
- * Browser smoke test: drives the real UI in headless Chromium.
+ * Browser smoke test: signs in as a throwaway user in headless Chromium and
+ * walks every route. Any console error, page exception or failed request fails.
+ * It's the only check that actually renders the views.
  *
- *   npm run test:browser        (from the repo root)
- *
- * Serves the repo, signs in as a throwaway user, walks every route and
- * exercises the interactions a student actually performs. Any console error,
- * page exception or failed request is a failure.
- *
- * This is the only check that executes the view layer. The unit tests cover
- * pure logic and the function smoke test covers the server, but neither one
- * would notice a template that throws on render.
+ *   npm run test:browser
  */
 import { createServer } from "node:http";
 import { readFile, mkdir } from "node:fs/promises";
@@ -22,9 +16,8 @@ config();
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
-// fileURLToPath, not url.pathname: on Windows the latter yields "/C:/Users/…"
-// with forward slashes, which never matches the back-slashed paths join()
-// produces. So every request fails the containment check with a 403.
+// fileURLToPath, not url.pathname: on Windows the latter gives "/C:/..." and
+// every request failed the containment check.
 const REPO = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const URL_SB = process.env.SUPABASE_URL;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -331,8 +324,7 @@ try {
     await page.waitForSelector(String.raw`[data-nav="papers"]`, { timeout: 15000 });
     await page.click(String.raw`[data-nav="papers"]`);
     await page.waitForSelector("#pCoverage", { timeout: 15000 });
-    // The throwaway user is an ordinary student. Adding papers replaces what
-    // every student is marked against, so it must NOT be offered to them.
+    // A student must not be offered the shared-corpus uploader.
     if (await page.locator("#pDrop").count()) note("papers", "a student is offered the corpus uploader");
   });
 

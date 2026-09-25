@@ -1,10 +1,5 @@
-/**
- * Sign in, sign up, password reset, and first-run subject selection.
- *
- * These render into their own full-screen container rather than the app
- * outlet, because the shell (sidebar, nav) must not be visible before there is
- * a signed-in user to show it to.
- */
+// Sign in, sign up, password reset and first-run subjects. Rendered outside
+// the app outlet: no shell until someone's signed in.
 
 import { esc, byId, on, debounce } from "../ui/dom.js";
 import { toast } from "../ui/feedback.js";

@@ -1,8 +1,7 @@
 name: CI
 
-# The unit tests need no database, no network and no secrets, so they can gate
-# every push. The smoke tests hit a real Supabase project and a real Gemini
-# key, so they stay manual: see the Tests section of the README.
+# Unit tests need no database, network or secrets, so they gate every push.
+# Smoke tests need a live project and Gemini keys, so they're run by hand.
 
 on:
   push:
@@ -40,12 +39,7 @@ jobs:
           done
 
       - name: Type-check the edge functions
-        # Deno is what actually runs them; this catches a broken import or a
-        # type error before a deploy does. --node-modules-dir=auto makes Deno
-        # resolve supabase-js's npm dependencies itself instead of expecting a
-        # node_modules/ that was never installed; without it every run fails
-        # on dependency resolution before it reaches our code, which is why
-        # this step used to be continue-on-error.
+        # --node-modules-dir=auto lets Deno resolve supabase-js's npm deps itself.
         run: |
           curl -fsSL https://deno.land/install.sh | DENO_INSTALL="$HOME/.deno" sh -s v2.9.7
           export PATH="$HOME/.deno/bin:$PATH"

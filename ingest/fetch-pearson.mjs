@@ -1,23 +1,12 @@
 /**
- * Download Pearson Edexcel International GCSE past papers from Pearson's own
- * public past-papers pages.
+ * Download Edexcel International GCSE past papers from Pearson's own site.
  *
  *   node fetch-pearson.mjs --subjects 4PH1,4CH1 --years 2021-2025 [--series Jun]
  *                          [--kinds qp,ms,er] [--dry] [--refresh]
  *
- * Every file comes from qualifications.pearson.com, which publishes them free
- * to students and teachers. Nothing is fetched from any other site.
- *
- * Manners:
- *   - one request every couple of seconds, and it says what it is;
- *   - nothing Pearson marks as needing a teacher login;
- *   - nothing from the last 12 months, which Pearson holds back for teachers;
- *   - a file that is already on disk and valid is never fetched again, so the
- *     run can be stopped and restarted at any point.
- *
- * Files are written as ingest/pdfs/<CODE>/E-<CODE>_s24_qp_1P.pdf, the name the
- * ingestion CLI expects, so `node ingest.js papers --dir pdfs/<CODE>` works on
- * them as they are.
+ * Only qualifications.pearson.com, one request every couple of seconds, nothing
+ * behind a teacher login or inside the 12-month embargo. Files already on disk
+ * are skipped, so a run can stop and restart anywhere.
  */
 import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -96,8 +85,7 @@ function plan(docs) {
     if (!s || s.session !== series || s.year < yearFrom || s.year > yearTo) continue;
 
     if (isGated(d)) { skipped.gated++; continue; }
-    // A June series is well over 12 months old by the time it is in range, but
-    // check anyway: the embargo is Pearson's rule, not ours.
+    // Belt and braces: a June series in range is always past the embargo.
     if (new Date(s.year, s.session === "Jun" ? 5 : s.session === "Jan" ? 0 : 10, 1) > EMBARGO) { skipped.embargo++; continue; }
 
     wanted.push({
@@ -175,15 +163,9 @@ if (dry) {
 
 /* ----------------------------------------------------- the specification -- */
 
-/**
- * Fetch each subject's specification, once.
- *
- * Its section headings become the topic vocabulary every question in that
- * subject is classified against, so it has to be ingested BEFORE the papers.
- * Named E-<code>_y17_sy.pdf, where 17 is the year the specification began.
- */
+/** Fetch each subject's specification once. It has to be ingested before the papers. */
 async function fetchSpecs() {
-  // The specification tag for each subject, read off the exam papers we already have.
+  // The spec tag for each subject, read off papers we already have.
   const slugs = new Map();
   for (const d of docs) {
     const id = fromUrl(d.url);

@@ -1,232 +1,129 @@
-# How to give Markwise the past papers
+# Loading past papers
 
-Everything the pipeline needs is carried in the **filename**. Get the names right and one
-command ingests a whole subject. Get them wrong and files are skipped with a warning.
+The ingestion CLI reads everything it needs from filenames, so correctly named files go in
+with one command. PDFs stay on your machine; only extracted text goes to Gemini (for the
+occasional re-read, topic labels and embeddings).
 
-You do not send the papers to me. You put them in a folder on your machine and run the
-ingestion CLI against it. The PDFs never leave your computer except as extracted text sent
-to Gemini for parsing, classification and embedding.
+Most of the time you won't name anything yourself: `fetch-pearson.mjs` downloads from
+Pearson's site and names files the way the CLI expects. This page is the reference for when
+you add files by hand.
 
-Markwise is built around **Pearson Edexcel International GCSE**. `fetch-pearson.mjs` gets you
-the files directly, named the way the CLI expects, so most of the time you never touch naming
-at all — read [SETUP.md](../SETUP.md) for that. This document is the reference for the naming
-scheme itself, for organising a folder by hand, and for the Cambridge/other-board files an
-older or borrowed corpus may still carry.
-
----
-
-## Getting the files
+## Downloading
 
 ```bash
 cd ingest
-node fetch-pearson.mjs --subjects 4PH1,4CH1 --years 2021-2025 --dry   # see the plan first
+node fetch-pearson.mjs --subjects 4PH1,4CH1 --years 2021-2025 --dry   # what Pearson lists
 node fetch-pearson.mjs --subjects 4PH1,4CH1 --years 2021-2025
 ```
 
-Pulls question papers, mark schemes, examiner reports and the specification straight from
-`qualifications.pearson.com` — Pearson's own public past-papers pages, nothing from a
-third-party mirror — at a polite rate, skipping anything gated behind their teacher login or
-still inside their 12-month embargo. It writes files already named the way the CLI expects, and
-is safe to stop and re-run: a file already on disk is never re-fetched.
+It fetches question papers, mark schemes, examiner reports and the specification from
+`qualifications.pearson.com` only, one request every couple of seconds, skipping anything
+behind a teacher login or less than 12 months old. Stop it whenever you like; files already on
+disk aren't fetched again.
 
-A handful of subjects' specifications aren't tagged the way the downloader looks for and need
-finding by hand on Pearson's site; `node ingest.js syllabus` says plainly when a subject has no
-spec ingested yet.
+For Business, Economics and Geography the downloader couldn't match a specification, so we
+found those by hand on Pearson's site. `node ingest.js syllabus` tells you when a subject has
+none.
 
----
-
-## The naming pattern
+## Naming
 
 ```
-E-<code>_<session><yy>_<kind>_<paper-ref>.pdf
+E-<code>_<series><yy>_<kind>_<paper>.pdf
 ```
 
 | Part | Meaning | Examples |
 |---|---|---|
-| `code` | Pearson's subject code, `E-` prefixed | `E-4PH1` Physics, `E-4MA1` Maths A |
-| `session` | **`s`** = June · **`j`** = January · **`w`** = November | `s24`, `j23` |
-| `yy` | two-digit year | `24` = 2024 |
-| `kind` | `qp` question paper · `ms` mark scheme · `er` examiner report · `sy` specification | |
-| `paper-ref` | the paper as Pearson prints it on the cover: paper number + tier/variant letter | `1H`, `2F`, `1PR`, `01` |
-
-Worked examples:
+| code | Pearson's subject code with an `E-` prefix | `E-4PH1`, `E-4MA1` |
+| series | `s` June, `j` January, `w` November | `s24`, `j23` |
+| kind | `qp` question paper, `ms` mark scheme, `er` examiner report, `sy` specification | |
+| paper | the reference printed on the cover | `1P`, `1H`, `2FR`, `01` |
 
 ```
-E-4PH1_s24_qp_1P.pdf    Physics, June 2024, question paper, Paper 1 (Physical)
-E-4PH1_s24_ms_1P.pdf    …its mark scheme                 ← REQUIRED for marking
-E-4PH1_s24_er_1P.pdf    …its examiner report              ← optional
-E-4PH1_y17_sy.pdf        Physics specification, first taught 2017  ← ingest this FIRST
-E-4MA1_s24_qp_1F.pdf    Maths A, June 2024, Paper 1 Foundation
-E-4MA1_s24_qp_1H.pdf    …Paper 1 Higher — a different paper, not a variant of the same one
+E-4PH1_s24_qp_1P.pdf   Physics, June 2024, Paper 1P question paper
+E-4PH1_s24_ms_1P.pdf   its mark scheme (needed for marking)
+E-4PH1_s24_er_1P.pdf   its examiner report (optional)
+E-4PH1_y17_sy.pdf      Physics specification, first taught 2017 (load this first)
+E-4MA1_s24_qp_1F.pdf   Maths A Paper 1 Foundation, which is a different paper from 1H
 ```
 
-**Pearson's own native filenames also work unchanged** — you never have to rename a file you
-downloaded by hand from their site:
+Pearson's own download names work unchanged: `4PH1_1P_que_20240523.pdf` (question paper),
+`..._rms_...` (mark scheme), `..._pef_...` (examiner report). The date in the name is the exam
+day for a question paper, but the publication day for a scheme or report (August for a May
+paper), and the parser accounts for that.
 
-```
-4PH1_1P_que_20240523.pdf   question paper  (que = qp)
-4PH1_1P_rms_20240815.pdf   mark scheme     (rms = ms)
-4PH1_1P_pef_20240815.pdf   examiner report (pef = er)
-```
+One folder per subject (`ingest/pdfs/4PH1/`) is simplest. A question paper and its mark scheme
+must be loaded in the same run to pair; if you add a scheme later, re-run the paper with
+`--force`.
 
-The series is read off the embedded date (the paper's own sitting date; the mark scheme and
-examiner report are published later, so their date is read as a *publication* date and mapped
-back to the series it marks).
+## What to collect first
 
----
+1. **The specification.** Its headings become the topic list every question is tagged with,
+   which drives weak topics and targeted mocks.
+2. **Question papers with their mark schemes.** A question without a scheme can be searched
+   but never marked.
+3. **Examiner reports.** Optional, and the source of "most candidates lost marks here by...".
+4. **Grade boundaries.** One combined PDF per series for every subject:
+   `node ingest.js boundaries --file <pdf> --year 2024 --session Jun`.
 
-## Folder layout
-
-One folder per subject is simplest — it's what `fetch-pearson.mjs` writes and what
-`node ingest.js papers --dir` expects. Nested folders also work; the CLI walks subdirectories.
-
-```
-ingest/pdfs/
-  4PH1/
-    E-4PH1_y17_sy.pdf
-    E-4PH1_s24_qp_1P.pdf
-    E-4PH1_s24_ms_1P.pdf
-    E-4PH1_s24_er_1P.pdf
-    E-4PH1_j24_qp_1P.pdf
-    ...
-```
-
-**The question paper and its mark scheme must be in the same run.** They are matched by
-subject + session + year + paper reference. A question paper ingested without its mark scheme
-is searchable but can never be marked. Re-running later with the mark scheme present will not
-retroactively pair it unless the question paper is re-ingested (`--force`, or delete its rows).
-
----
-
-## What to collect, in priority order
-
-1. **The specification** for each subject (`_sy`). One file. Highest value per megabyte in the
-   whole corpus: its section headings become the topic vocabulary that every question is
-   classified against, which is what makes the weakness profile and topic-targeted mocks
-   work. **Ingest it before the papers.**
-2. **Question paper + mark scheme pairs** (`_qp` and `_ms`). Always together. Without the
-   mark scheme, marking is impossible and that is the flagship feature.
-3. **Examiner reports** (`_er`). Optional but valuable. They are the source of "most
-   candidates lost marks here by…", which no general chatbot has.
-4. **Grade boundaries.** Optional, only needed for predicted grades, and not a per-subject
-   file: Pearson publishes one combined "Notional component grade boundaries" PDF per series,
-   covering every subject at once. `node ingest.js boundaries --file <that pdf>`.
-
-### How much to start with
-
-Do **one subject, two series** first: about 8 files. That proves the parser works on your
-actual PDFs before you spend hours collecting. Then scale.
-
-| Scope | Files | Rough ingestion time |
-|---|---|---|
-| Proof run: 1 subject, 2 series | ~8 | 2–5 min |
-| 1 subject, 5 years | ~50–100 | 20–40 min |
-| 10 subjects, 5 years | ~500–1,000 | most of a day |
-
-Times assume two or more Gemini keys and quota still available; the embedding step is what
-runs out first (see **If it goes wrong**, below). A second free key roughly halves the wall
-clock.
-
-### Which papers are worth having
-
-- **Recent years first.** Specifications change; a decade-old question may be off-syllabus
-  now. The last 5 years is the sweet spot, and is what `fetch-pearson.mjs --years` defaults to.
-- **Both tiers**, for a tiered subject (Foundation and Higher are different papers, not
-  variants of one paper — both are useful, and a student may sit either).
-- **Reserve/retake papers** (the `R` suffix, e.g. `1PR`) are separate real papers, not
-  duplicates: keep them.
-
----
+Start with one subject and two series (about 8 files) to check the parser on your PDFs. Our
+full load of 19 subjects over five years was about 1,000 files and took most of a day, mainly
+waiting on the free Gemini quota.
 
 ## Running it
 
 ```bash
-cd ingest
-npm install                 # first time only
-cp .env.example .env        # fill in service-role key + Gemini key(s)
-
-# 1. Specification first
 node ingest.js syllabus --file ./pdfs/4PH1/E-4PH1_y17_sy.pdf
-
-# 2. Papers
 node ingest.js papers --dir ./pdfs/4PH1 --subject E-4PH1
-
-# 3. Optional
-node ingest.js boundaries --file ./pdfs/_boundaries/2024-notional.pdf --year 2024 --session Jun
-node ingest.js classify        # tags topics; safe to re-run if quota ran out
-node ingest.js reembed         # retry chunks that failed to embed
+node ingest.js classify --subject E-4PH1
+node ingest.js reembed --subject E-4PH1
 node ingest.js status
 ```
 
-Drop `--subject` to ingest everything in the folder at once.
-
-### What good output looks like
+A healthy run looks like:
 
 ```
-Found 52 PDFs in ./pdfs/4PH1
 18 paper group(s) to process.
-
   E-4PH1_s24_qp_1P: 51 parts · 51 with mark scheme (exact 51, fuzzy 0, root 0)
-  E-4PH1_s24_qp_2P: 33 parts · 33 with mark scheme (exact 33, fuzzy 0, root 0)
-
 Done.
   papers ingested : 18 (0 unchanged, skipped)
   question chunks : 725
   with mark scheme: 717
-  without         : 8
   flagged         : 0 paper(s) that do not add up: re-check these
 ```
 
-**The number that matters is "with mark scheme".** Above ~85% means the pipeline is working.
-Below ~50% means something is wrong: see below. `flagged` counts papers whose part marks don't
-sum to the printed paper total even after the model re-read them — worth opening by hand.
+"With mark scheme" is the number to watch: above about 85% is fine, below 50% means something's
+wrong. "Flagged" counts papers whose marks still don't add up to the printed total after the
+model's re-read; open those by hand.
+
+To check parsing without touching the database, run the audits: `node tools/audit-pdfs.mjs
+pdfs/4PH1` (questions found and marks against the printed total) and `node tools/audit-ms.mjs
+pdfs/4PH1` (pairing rate per paper).
+
+## Messages you might see
+
+| Message | Meaning |
+|---|---|
+| `N file(s) had unrecognisable names` | Rename them to the pattern above |
+| `no question paper, only a mark scheme` | The `_qp` file is missing or misnamed |
+| `parse does not add up ...: retrying with the model` | Normal for some layouts |
+| `no questions extracted` | A scan with no text layer: `npm install canvas`, then `--ocr` |
+| `embedding batch failed` | Hit the per-minute limit; `reembed` later |
+| `no progress after 2 passes` | The daily embedding quota is gone. Load with `--no-embed`, `reembed` tomorrow |
+| `NO TOPIC VOCABULARY for ...` | That subject's specification isn't loaded yet |
+
+A paper that offers a choice ("Answer TWO questions from Section A") prints more questions than
+its total, so the marks-total check is skipped for it. If a new subject flags lots of papers,
+check whether its rubric wording needs adding to `OFFERS_CHOICE` in `lib/parse.js` before
+assuming the parser is broken.
+
+## Other boards
+
+The live catalogue is Edexcel only. The parsers still read Cambridge names (`0625_s19_qp_42.pdf`,
+marks in `[3]`), and Cambridge rows are kept in the database but switched off. Courses without
+their own specification ("Extra Maths", "Single Science Physics") borrow a subject's papers
+through `subjects.corpus_code`, so nothing extra is loaded for them.
 
 ---
-
-## If it goes wrong
-
-| Output | Cause | Fix |
-|---|---|---|
-| `N file(s) had unrecognisable names` | Filenames don't match either naming scheme | Rename them, or accept best-effort parsing |
-| `no question paper, only a mark scheme` | The `_qp` file is missing or misnamed | Add it |
-| `parse does not add up ...: retrying with the model` | Normal on some papers. Not an error | |
-| `no questions extracted` | Scanned PDF with no text layer | `npm install canvas`, re-run with `--ocr` |
-| Very low "with mark scheme" | Mark scheme PDFs missing, or its layout defeated the parser | Check both files are present; ensure `INGEST_LLM_PARSE=1` |
-| `flagged: N paper(s) that do not add up` | Part marks don't sum to the printed total even after the model's re-read | Open that paper by hand; a genuine layout it can't handle |
-| `embedding batch failed` | Gemini's per-minute rate limit | Harmless, usually self-clears: `node ingest.js reembed` afterwards |
-| `no progress after 2 passes (quota likely exhausted for now)` | The *daily* embedding quota is spent, not just the per-minute limit | Ingest with `--no-embed` to skip straight past it, and run `reembed` again later once quota resets |
-| `NO TOPIC VOCABULARY for ...: every question below is going in untagged` | The specification hasn't been ingested for that subject yet | Ingest the syllabus first, then re-run `classify` |
-
-Send me the console output of a run and I can tell you which of these it is, and tune
-[`ingest/lib/parse.js`](../ingest/lib/parse.js) against the specific layout if needed.
-
----
-
-## Other boards and school subjects
-
-Courses with no specification of their own: Extra Maths, Single Science, Further Pure
-Maths: are set up to **borrow another subject's corpus** via `subjects.corpus_code`. Ingest
-the main subject and students on the borrowing course get its questions; nothing is ingested
-separately for them.
-
-Cambridge, AQA and OCR are still supported by the parsers, prefixed the same way Edexcel is:
-`E-` Edexcel, `A-` AQA, `O-` OCR, bare digits for Cambridge, `X-` a school course. The live
-catalogue is Edexcel-only (the Cambridge/BTEC rows were deactivated, not deleted, when the app
-moved boards), but a deactivated code still round-trips correctly if you ever re-enable one:
-
-```
-0625_s19_qp_42.pdf      Cambridge Physics, May/June 2019, paper 4 variant 2
-```
-
-Both layouts are read deterministically: Cambridge marks a part `[3]`; Edexcel prints `(3)` on
-its own line and closes with `(Total for Question 1 is 3 marks)`. Where a layout still defeats
-the parser, the model re-reads that paper alone rather than the whole run.
-
----
-
-## Copyright
 
 Past papers, mark schemes, examiner reports and specifications are © Pearson Education
-Limited (or © the relevant board, for a non-Edexcel corpus). Ingest only material you are
-licensed to use, and keep the deployment private to yourself or your school. Do not publish a
-Markwise instance containing this content.
+Limited. Only load material you're licensed to use and keep the deployment private.

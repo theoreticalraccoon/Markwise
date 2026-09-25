@@ -1,13 +1,6 @@
-/**
- * Supabase access inside edge functions.
- *
- * Two clients, deliberately:
- *
- *  - userClient() forwards the caller's JWT, so every read and write it makes
- *    is still subject to row-level security. All user data goes through it.
- *  - adminClient() uses the service-role key and bypasses RLS. It is used only
- *    for reading the shared corpus in the retrieval path, never for user rows.
- */
+// Two clients: userClient() forwards the caller's JWT, so RLS still applies
+// to every user row. adminClient() uses the service-role key, for the shared
+// corpus, quota accounting and grade lookups only.
 
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 

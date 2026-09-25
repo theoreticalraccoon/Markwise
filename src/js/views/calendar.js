@@ -1,16 +1,6 @@
-/**
- * Calendar: the month, shaded by how much work each day carries.
- *
- * The planner answers "what do I owe?". This answers "when does it all land?",
- * which is the question that actually causes the panic. Three assessments in
- * one week is invisible on a board grouped by subject and obvious the moment
- * the month is drawn.
- *
- * Load is measured in minutes, not task count: four ten-minute exercises are
- * not the same day as one three-hour assessment. Tasks with no estimate fall
- * back to a default by type, because a day that looks empty because nobody
- * typed a number is worse than a day that is roughly right.
- */
+// Calendar: the month shaded by workload, so three assessments in one week
+// are obvious. Load is in minutes, not task count; tasks without an estimate
+// get a default by type.
 
 import { esc, on } from "../ui/dom.js";
 import { toast, skeleton, openModal } from "../ui/feedback.js";
@@ -137,15 +127,7 @@ function heatClass(minutes) {
   return "heat-1";
 }
 
-/**
- * The exam series, counted down.
- *
- * `profiles.exam_session` is free text like "Jun 2027", which is exactly how a
- * student says it. Cambridge sits May/June from early May, Oct/Nov from early
- * October and Feb/March from late February, so the first of those months is a
- * close enough anchor for a number whose job is to create urgency, not to
- * schedule a flight.
- */
+/** Countdown to the exam series from profiles.exam_session (see examStart). */
 function paintCountdown() {
   const slot = root.querySelector("#calCountdown");
   const session = store.profile?.exam_session;
@@ -291,8 +273,7 @@ function showDay(day) {
         openTaskForm(null, null, { due: day, onSaved: refresh });
       });
 
-      // The modal lives in the overlay, outside this view's root, so the
-      // delegated handler in wire() cannot reach these. Wire them here.
+      // The modal sits outside this view's root, so wire its checkboxes directly.
       dialog.querySelectorAll("input[data-toggle]").forEach((input) => {
         input.addEventListener("change", async () => {
           const task = store.tasks.find((t) => t.id === input.dataset.toggle);

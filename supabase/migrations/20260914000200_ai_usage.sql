@@ -1,11 +1,5 @@
--- ============================================================================
--- Markwise: AI usage accounting.
---
--- The Gemini free tier is a shared, per-project resource: one student running
--- a loop can exhaust the daily quota for everyone. This gives each user a
--- per-day budget the edge functions check before calling the model, and gives
--- the owner a usage log to see where quota actually goes.
--- ============================================================================
+-- Per-user daily AI budget. The Gemini free tier is shared, so one student in
+-- a loop could spend everyone's quota. Edge functions check this first.
 
 create table if not exists public.ai_usage (
   id         uuid primary key default gen_random_uuid(),
@@ -42,9 +36,7 @@ alter table public.ai_limits enable row level security;
 drop policy if exists "limits_read" on public.ai_limits;
 create policy "limits_read" on public.ai_limits for select to authenticated using (true);
 
--- Atomically check the cap and record the call. Returns remaining allowance,
--- or -1 when the cap is already spent (so the function can refuse before
--- spending a Gemini call rather than after).
+-- Check the cap and record the call in one step. Returns what's left, or -1.
 create or replace function public.claim_ai_call(p_user uuid, p_route text)
 returns integer
 language plpgsql

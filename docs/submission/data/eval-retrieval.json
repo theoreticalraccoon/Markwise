@@ -1,0 +1,1167 @@
+{
+  "generated": "2026-09-25T14:16:43.588Z",
+  "mode": "full text only (no embedding quota used)",
+  "sampled": 114,
+  "exact": {
+    "top1": {
+      "hits": 112,
+      "of": 114,
+      "pct": 98.2
+    },
+    "refusedAsAmbiguous": {
+      "hits": 0,
+      "of": 114,
+      "pct": 0
+    }
+  },
+  "paste": {
+    "top1": {
+      "hits": 78,
+      "of": 114,
+      "pct": 68.4
+    },
+    "top5": {
+      "hits": 100,
+      "of": 114,
+      "pct": 87.7
+    },
+    "top5SameQuestion": {
+      "hits": 100,
+      "of": 114,
+      "pct": 87.7
+    }
+  },
+  "bySubject": {
+    "4PM1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 5
+    },
+    "4MA1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4MB1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4PH1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4CH1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4BI1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4SD0": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 4
+    },
+    "4HB1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4EA1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4EB1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4ET1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4BS1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4EC1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 5
+    },
+    "4AC1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 3
+    },
+    "4CM1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 5
+    },
+    "4GE1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4HI1": {
+      "n": 6,
+      "exactTop1": 4,
+      "pasteTop5": 1
+    },
+    "4IT1": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 6
+    },
+    "4CP0": {
+      "n": 6,
+      "exactTop1": 6,
+      "pasteTop5": 5
+    }
+  },
+  "misses": [
+    {
+      "subject": "4PM1",
+      "paper": "E-4PM1_s24_qp_01",
+      "question": "6(d)",
+      "exactQuery": "4PM1 June 2024 Paper 01 Q6(d)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4SD0",
+      "paper": "E-4SD0_s24_qp_1CR",
+      "question": "3(c)(i)",
+      "exactQuery": "4SD0 June 2024 Paper 1CR Q3(c)(i)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4SD0",
+      "paper": "E-4SD0_s22_qp_1CR",
+      "question": "11(a)(i)",
+      "exactQuery": "4SD0 June 2022 Paper 1CR Q11(a)(i)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4EC1",
+      "paper": "E-4EC1_s21_qp_01",
+      "question": "4(a)",
+      "exactQuery": "4EC1 June 2021 Paper 01 Q4(a)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4AC1",
+      "paper": "E-4AC1_s23_qp_01",
+      "question": "15(c)",
+      "exactQuery": "4AC1 June 2023 Paper 01 Q15(c)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4AC1",
+      "paper": "E-4AC1_s24_qp_01R",
+      "question": "16(b)",
+      "exactQuery": "4AC1 June 2024 Paper 01R Q16(b)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4AC1",
+      "paper": "E-4AC1_s22_qp_02",
+      "question": "1(c)(ii)",
+      "exactQuery": "4AC1 June 2022 Paper 02 Q1(c)(ii)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4CM1",
+      "paper": "E-4CM1_s23_qp_02R",
+      "question": "2(c)(ii)",
+      "exactQuery": "4CM1 June 2023 Paper 02R Q2(c)(ii)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s21_qp_1B",
+      "question": "6(c)(ii)",
+      "exactQuery": "4HI1 June 2021 Paper 1B Q6(c)(ii)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s24_qp_01R",
+      "question": "7(a)",
+      "exactQuery": "4HI1 June 2024 Paper 01R Q7(a)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s22_qp_2BR",
+      "question": "B2(c)(ii)",
+      "exactQuery": "4HI1 June 2022 Paper 2BR Question B2(c)(ii)",
+      "exact": "miss",
+      "paste": "top1"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s21_qp_1A",
+      "question": "1(b)",
+      "exactQuery": "4HI1 June 2021 Paper 1A Q1(b)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s24_qp_01R",
+      "question": "4(b)",
+      "exactQuery": "4HI1 June 2024 Paper 01R Q4(b)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s23_qp_02R",
+      "question": "A1(b)",
+      "exactQuery": "4HI1 June 2023 Paper 02R Question A1(b)",
+      "exact": "miss",
+      "paste": "miss"
+    },
+    {
+      "subject": "4CP0",
+      "paper": "E-4CP0_s24_qp_02",
+      "question": "5(c)",
+      "exactQuery": "4CP0 June 2024 Paper 02 Q5(c)",
+      "exact": "top1",
+      "paste": "miss"
+    }
+  ],
+  "results": [
+    {
+      "subject": "4PM1",
+      "paper": "E-4PM1_s22_qp_02",
+      "question": "2(b)",
+      "exactQuery": "4PM1 June 2022 Paper 02 Q2(b)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4PM1",
+      "paper": "E-4PM1_s24_qp_01",
+      "question": "6(d)",
+      "exactQuery": "4PM1 June 2024 Paper 01 Q6(d)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4PM1",
+      "paper": "E-4PM1_s22_qp_01R",
+      "question": "2(a)",
+      "exactQuery": "4PM1 June 2022 Paper 01R Q2(a)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4PM1",
+      "paper": "E-4PM1_s25_qp_02",
+      "question": "4(a)(ii)",
+      "exactQuery": "4PM1 June 2025 Paper 02 Q4(a)(ii)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4PM1",
+      "paper": "E-4PM1_s23_qp_02R",
+      "question": "10",
+      "exactQuery": "4PM1 June 2023 Paper 02R Q10",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4PM1",
+      "paper": "E-4PM1_s25_qp_02",
+      "question": "10(c)",
+      "exactQuery": "4PM1 June 2025 Paper 02 Q10(c)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4MA1",
+      "paper": "E-4MA1_s25_qp_2F",
+      "question": "23",
+      "exactQuery": "4MA1 June 2025 Paper 2F Q23",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4MA1",
+      "paper": "E-4MA1_s23_qp_2H",
+      "question": "10",
+      "exactQuery": "4MA1 June 2023 Paper 2H Q10",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4MA1",
+      "paper": "E-4MA1_s25_qp_1FR",
+      "question": "1(d)",
+      "exactQuery": "4MA1 June 2025 Paper 1FR Q1(d)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4MA1",
+      "paper": "E-4MA1_s25_qp_2H",
+      "question": "11",
+      "exactQuery": "4MA1 June 2025 Paper 2H Q11",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4MA1",
+      "paper": "E-4MA1_s22_qp_1F",
+      "question": "15",
+      "exactQuery": "4MA1 June 2022 Paper 1F Q15",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4MA1",
+      "paper": "E-4MA1_s22_qp_2FR",
+      "question": "4(b)(i)",
+      "exactQuery": "4MA1 June 2022 Paper 2FR Q4(b)(i)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4MB1",
+      "paper": "E-4MB1_s24_qp_01",
+      "question": "14(b)",
+      "exactQuery": "4MB1 June 2024 Paper 01 Q14(b)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4MB1",
+      "paper": "E-4MB1_s23_qp_02",
+      "question": "7(a)",
+      "exactQuery": "4MB1 June 2023 Paper 02 Q7(a)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4MB1",
+      "paper": "E-4MB1_s22_qp_01R",
+      "question": "25(b)",
+      "exactQuery": "4MB1 June 2022 Paper 01R Q25(b)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4MB1",
+      "paper": "E-4MB1_s22_qp_01R",
+      "question": "27",
+      "exactQuery": "4MB1 June 2022 Paper 01R Q27",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4MB1",
+      "paper": "E-4MB1_s24_qp_02",
+      "question": "4(c)",
+      "exactQuery": "4MB1 June 2024 Paper 02 Q4(c)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4MB1",
+      "paper": "E-4MB1_s22_qp_01",
+      "question": "15(b)",
+      "exactQuery": "4MB1 June 2022 Paper 01 Q15(b)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4PH1",
+      "paper": "E-4PH1_s24_qp_1P",
+      "question": "5(b)(i)",
+      "exactQuery": "4PH1 June 2024 Paper 1P Q5(b)(i)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4PH1",
+      "paper": "E-4PH1_s22_qp_2PR",
+      "question": "6(a)(ii)",
+      "exactQuery": "4PH1 June 2022 Paper 2PR Q6(a)(ii)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4PH1",
+      "paper": "E-4PH1_s23_qp_2P",
+      "question": "3(a)(ii)",
+      "exactQuery": "4PH1 June 2023 Paper 2P Q3(a)(ii)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4PH1",
+      "paper": "E-4PH1_s22_qp_1P",
+      "question": "8(c)(ii)",
+      "exactQuery": "4PH1 June 2022 Paper 1P Q8(c)(ii)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4PH1",
+      "paper": "E-4PH1_s22_qp_1P",
+      "question": "1(b)",
+      "exactQuery": "4PH1 June 2022 Paper 1P Q1(b)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4PH1",
+      "paper": "E-4PH1_s25_qp_1PR",
+      "question": "3(b)(iv)",
+      "exactQuery": "4PH1 June 2025 Paper 1PR Q3(b)(iv)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CH1",
+      "paper": "E-4CH1_s21_qp_1C",
+      "question": "10(c)(i)",
+      "exactQuery": "4CH1 June 2021 Paper 1C Q10(c)(i)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CH1",
+      "paper": "E-4CH1_s25_qp_1C",
+      "question": "9(a)(i)",
+      "exactQuery": "4CH1 June 2025 Paper 1C Q9(a)(i)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4CH1",
+      "paper": "E-4CH1_s21_qp_2C",
+      "question": "5(b)(i)",
+      "exactQuery": "4CH1 June 2021 Paper 2C Q5(b)(i)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CH1",
+      "paper": "E-4CH1_s23_qp_1C",
+      "question": "1(a)(ii)",
+      "exactQuery": "4CH1 June 2023 Paper 1C Q1(a)(ii)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CH1",
+      "paper": "E-4CH1_s24_qp_1C",
+      "question": "8(b)",
+      "exactQuery": "4CH1 June 2024 Paper 1C Q8(b)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CH1",
+      "paper": "E-4CH1_s23_qp_1C",
+      "question": "2(c)(i)",
+      "exactQuery": "4CH1 June 2023 Paper 1C Q2(c)(i)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4BI1",
+      "paper": "E-4BI1_s22_qp_2B",
+      "question": "5(a)(ii)",
+      "exactQuery": "4BI1 June 2022 Paper 2B Q5(a)(ii)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4BI1",
+      "paper": "E-4BI1_s22_qp_1B",
+      "question": "3(a)(v)",
+      "exactQuery": "4BI1 June 2022 Paper 1B Q3(a)(v)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4BI1",
+      "paper": "E-4BI1_s22_qp_2BR",
+      "question": "2(b)",
+      "exactQuery": "4BI1 June 2022 Paper 2BR Q2(b)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4BI1",
+      "paper": "E-4BI1_s24_qp_2B",
+      "question": "2(b)(i)",
+      "exactQuery": "4BI1 June 2024 Paper 2B Q2(b)(i)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4BI1",
+      "paper": "E-4BI1_s23_qp_1BR",
+      "question": "7(a)(ii)",
+      "exactQuery": "4BI1 June 2023 Paper 1BR Q7(a)(ii)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4BI1",
+      "paper": "E-4BI1_s22_qp_2BR",
+      "question": "1(a)",
+      "exactQuery": "4BI1 June 2022 Paper 2BR Q1(a)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4SD0",
+      "paper": "E-4SD0_s21_qp_1P",
+      "question": "3(b)",
+      "exactQuery": "4SD0 June 2021 Paper 1P Q3(b)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4SD0",
+      "paper": "E-4SD0_s21_qp_1B",
+      "question": "8(b)",
+      "exactQuery": "4SD0 June 2021 Paper 1B Q8(b)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4SD0",
+      "paper": "E-4SD0_s22_qp_1P",
+      "question": "12(c)",
+      "exactQuery": "4SD0 June 2022 Paper 1P Q12(c)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4SD0",
+      "paper": "E-4SD0_s23_qp_1BR",
+      "question": "9(b)(ii)",
+      "exactQuery": "4SD0 June 2023 Paper 1BR Q9(b)(ii)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4SD0",
+      "paper": "E-4SD0_s24_qp_1CR",
+      "question": "3(c)(i)",
+      "exactQuery": "4SD0 June 2024 Paper 1CR Q3(c)(i)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4SD0",
+      "paper": "E-4SD0_s22_qp_1CR",
+      "question": "11(a)(i)",
+      "exactQuery": "4SD0 June 2022 Paper 1CR Q11(a)(i)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4HB1",
+      "paper": "E-4HB1_s21_qp_02",
+      "question": "2(b)(ii)",
+      "exactQuery": "4HB1 June 2021 Paper 02 Q2(b)(ii)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4HB1",
+      "paper": "E-4HB1_s25_qp_01R",
+      "question": "2(b)",
+      "exactQuery": "4HB1 June 2025 Paper 01R Q2(b)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4HB1",
+      "paper": "E-4HB1_s23_qp_01R",
+      "question": "8(a)(i)",
+      "exactQuery": "4HB1 June 2023 Paper 01R Q8(a)(i)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4HB1",
+      "paper": "E-4HB1_s22_qp_01R",
+      "question": "8",
+      "exactQuery": "4HB1 June 2022 Paper 01R Q8",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4HB1",
+      "paper": "E-4HB1_s22_qp_02R",
+      "question": "5(d)",
+      "exactQuery": "4HB1 June 2022 Paper 02R Q5(d)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4HB1",
+      "paper": "E-4HB1_s23_qp_02",
+      "question": "4(b)(ii)",
+      "exactQuery": "4HB1 June 2023 Paper 02 Q4(b)(ii)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4EA1",
+      "paper": "E-4EA1_s21_qp_01",
+      "question": "1",
+      "exactQuery": "4EA1 June 2021 Paper 01 Q1",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EA1",
+      "paper": "E-4EA1_s25_qp_01R",
+      "question": "2",
+      "exactQuery": "4EA1 June 2025 Paper 01R Q2",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EA1",
+      "paper": "E-4EA1_s21_qp_01",
+      "question": "6",
+      "exactQuery": "4EA1 June 2021 Paper 01 Q6",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EA1",
+      "paper": "E-4EA1_s22_qp_01R",
+      "question": "1",
+      "exactQuery": "4EA1 June 2022 Paper 01R Q1",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EA1",
+      "paper": "E-4EA1_s22_qp_01",
+      "question": "1",
+      "exactQuery": "4EA1 June 2022 Paper 01 Q1",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EA1",
+      "paper": "E-4EA1_s22_qp_02",
+      "question": "1",
+      "exactQuery": "4EA1 June 2022 Paper 02 Q1",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EB1",
+      "paper": "E-4EB1_s24_qp_01R",
+      "question": "9",
+      "exactQuery": "4EB1 June 2024 Paper 01R Q9",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EB1",
+      "paper": "E-4EB1_s23_qp_01R",
+      "question": "10",
+      "exactQuery": "4EB1 June 2023 Paper 01R Q10",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EB1",
+      "paper": "E-4EB1_s22_qp_01",
+      "question": "3",
+      "exactQuery": "4EB1 June 2022 Paper 01 Q3",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EB1",
+      "paper": "E-4EB1_s23_qp_01",
+      "question": "9",
+      "exactQuery": "4EB1 June 2023 Paper 01 Q9",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EB1",
+      "paper": "E-4EB1_s23_qp_01R",
+      "question": "6",
+      "exactQuery": "4EB1 June 2023 Paper 01R Q6",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EB1",
+      "paper": "E-4EB1_s22_qp_01R",
+      "question": "10",
+      "exactQuery": "4EB1 June 2022 Paper 01R Q10",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4ET1",
+      "paper": "E-4ET1_s23_qp_02R",
+      "question": "17",
+      "exactQuery": "4ET1 June 2023 Paper 02R Q17",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4ET1",
+      "paper": "E-4ET1_s22_qp_01",
+      "question": "10",
+      "exactQuery": "4ET1 June 2022 Paper 01 Q10",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4ET1",
+      "paper": "E-4ET1_s25_qp_01R",
+      "question": "4",
+      "exactQuery": "4ET1 June 2025 Paper 01R Q4",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4ET1",
+      "paper": "E-4ET1_s22_qp_02",
+      "question": "11",
+      "exactQuery": "4ET1 June 2022 Paper 02 Q11",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4ET1",
+      "paper": "E-4ET1_s24_qp_02",
+      "question": "21",
+      "exactQuery": "4ET1 June 2024 Paper 02 Q21",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4ET1",
+      "paper": "E-4ET1_s21_qp_01",
+      "question": "5",
+      "exactQuery": "4ET1 June 2021 Paper 01 Q5",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4BS1",
+      "paper": "E-4BS1_s25_qp_02",
+      "question": "2(b)",
+      "exactQuery": "4BS1 June 2025 Paper 02 Q2(b)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4BS1",
+      "paper": "E-4BS1_s24_qp_01",
+      "question": "1(a)(vi)",
+      "exactQuery": "4BS1 June 2024 Paper 01 Q1(a)(vi)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4BS1",
+      "paper": "E-4BS1_s23_qp_01R",
+      "question": "2(c)",
+      "exactQuery": "4BS1 June 2023 Paper 01R Q2(c)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4BS1",
+      "paper": "E-4BS1_s24_qp_01",
+      "question": "4(a)",
+      "exactQuery": "4BS1 June 2024 Paper 01 Q4(a)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4BS1",
+      "paper": "E-4BS1_s23_qp_02",
+      "question": "3(d)",
+      "exactQuery": "4BS1 June 2023 Paper 02 Q3(d)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4BS1",
+      "paper": "E-4BS1_s24_qp_01R",
+      "question": "3(b)",
+      "exactQuery": "4BS1 June 2024 Paper 01R Q3(b)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4EC1",
+      "paper": "E-4EC1_s22_qp_02",
+      "question": "3(e)",
+      "exactQuery": "4EC1 June 2022 Paper 02 Q3(e)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EC1",
+      "paper": "E-4EC1_s21_qp_01",
+      "question": "4(a)",
+      "exactQuery": "4EC1 June 2021 Paper 01 Q4(a)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4EC1",
+      "paper": "E-4EC1_s25_qp_01R",
+      "question": "1(b)",
+      "exactQuery": "4EC1 June 2025 Paper 01R Q1(b)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EC1",
+      "paper": "E-4EC1_s23_qp_01",
+      "question": "1(d)",
+      "exactQuery": "4EC1 June 2023 Paper 01 Q1(d)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EC1",
+      "paper": "E-4EC1_s24_qp_01",
+      "question": "2(g)",
+      "exactQuery": "4EC1 June 2024 Paper 01 Q2(g)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4EC1",
+      "paper": "E-4EC1_s22_qp_02R",
+      "question": "3(d)",
+      "exactQuery": "4EC1 June 2022 Paper 02R Q3(d)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4AC1",
+      "paper": "E-4AC1_s22_qp_01",
+      "question": "1",
+      "exactQuery": "4AC1 June 2022 Paper 01 Q1",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4AC1",
+      "paper": "E-4AC1_s23_qp_01",
+      "question": "15(c)",
+      "exactQuery": "4AC1 June 2023 Paper 01 Q15(c)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4AC1",
+      "paper": "E-4AC1_s24_qp_01R",
+      "question": "3",
+      "exactQuery": "4AC1 June 2024 Paper 01R Q3",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4AC1",
+      "paper": "E-4AC1_s24_qp_01R",
+      "question": "16(b)",
+      "exactQuery": "4AC1 June 2024 Paper 01R Q16(b)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4AC1",
+      "paper": "E-4AC1_s23_qp_01",
+      "question": "17(b)(i)",
+      "exactQuery": "4AC1 June 2023 Paper 01 Q17(b)(i)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4AC1",
+      "paper": "E-4AC1_s22_qp_02",
+      "question": "1(c)(ii)",
+      "exactQuery": "4AC1 June 2022 Paper 02 Q1(c)(ii)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4CM1",
+      "paper": "E-4CM1_s25_qp_02",
+      "question": "3(b)",
+      "exactQuery": "4CM1 June 2025 Paper 02 Q3(b)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4CM1",
+      "paper": "E-4CM1_s23_qp_01R",
+      "question": "1(g)",
+      "exactQuery": "4CM1 June 2023 Paper 01R Q1(g)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CM1",
+      "paper": "E-4CM1_s24_qp_01",
+      "question": "4(c)",
+      "exactQuery": "4CM1 June 2024 Paper 01 Q4(c)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CM1",
+      "paper": "E-4CM1_s23_qp_01",
+      "question": "3(d)",
+      "exactQuery": "4CM1 June 2023 Paper 01 Q3(d)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CM1",
+      "paper": "E-4CM1_s23_qp_02R",
+      "question": "2(c)(ii)",
+      "exactQuery": "4CM1 June 2023 Paper 02R Q2(c)(ii)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4CM1",
+      "paper": "E-4CM1_s22_qp_02",
+      "question": "2(g)",
+      "exactQuery": "4CM1 June 2022 Paper 02 Q2(g)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4GE1",
+      "paper": "E-4GE1_s21_qp_01",
+      "question": "3(b)(ii)",
+      "exactQuery": "4GE1 June 2021 Paper 01 Q3(b)(ii)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4GE1",
+      "paper": "E-4GE1_s22_qp_02R",
+      "question": "1(f)",
+      "exactQuery": "4GE1 June 2022 Paper 02R Q1(f)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4GE1",
+      "paper": "E-4GE1_s25_qp_01",
+      "question": "3(f)",
+      "exactQuery": "4GE1 June 2025 Paper 01 Q3(f)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4GE1",
+      "paper": "E-4GE1_s23_qp_02",
+      "question": "1(g)",
+      "exactQuery": "4GE1 June 2023 Paper 02 Q1(g)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4GE1",
+      "paper": "E-4GE1_s22_qp_01",
+      "question": "1(f)",
+      "exactQuery": "4GE1 June 2022 Paper 01 Q1(f)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4GE1",
+      "paper": "E-4GE1_s25_qp_01R",
+      "question": "1(b)(ii)",
+      "exactQuery": "4GE1 June 2025 Paper 01R Q1(b)(ii)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s21_qp_1B",
+      "question": "6(c)(ii)",
+      "exactQuery": "4HI1 June 2021 Paper 1B Q6(c)(ii)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s24_qp_01R",
+      "question": "7(a)",
+      "exactQuery": "4HI1 June 2024 Paper 01R Q7(a)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s22_qp_2BR",
+      "question": "B2(c)(ii)",
+      "exactQuery": "4HI1 June 2022 Paper 2BR Question B2(c)(ii)",
+      "exact": "miss",
+      "paste": "top1"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s21_qp_1A",
+      "question": "1(b)",
+      "exactQuery": "4HI1 June 2021 Paper 1A Q1(b)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s24_qp_01R",
+      "question": "4(b)",
+      "exactQuery": "4HI1 June 2024 Paper 01R Q4(b)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4HI1",
+      "paper": "E-4HI1_s23_qp_02R",
+      "question": "A1(b)",
+      "exactQuery": "4HI1 June 2023 Paper 02R Question A1(b)",
+      "exact": "miss",
+      "paste": "miss"
+    },
+    {
+      "subject": "4IT1",
+      "paper": "E-4IT1_s21_qp_01",
+      "question": "4(e)(i)",
+      "exactQuery": "4IT1 June 2021 Paper 01 Q4(e)(i)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4IT1",
+      "paper": "E-4IT1_s21_qp_01",
+      "question": "1(h)(iv)",
+      "exactQuery": "4IT1 June 2021 Paper 01 Q1(h)(iv)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4IT1",
+      "paper": "E-4IT1_s22_qp_01R",
+      "question": "3(a)(i)",
+      "exactQuery": "4IT1 June 2022 Paper 01R Q3(a)(i)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4IT1",
+      "paper": "E-4IT1_s22_qp_01R",
+      "question": "2(b)(vi)",
+      "exactQuery": "4IT1 June 2022 Paper 01R Q2(b)(vi)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4IT1",
+      "paper": "E-4IT1_s25_qp_01",
+      "question": "3(f)",
+      "exactQuery": "4IT1 June 2025 Paper 01 Q3(f)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4IT1",
+      "paper": "E-4IT1_s23_qp_01",
+      "question": "2(d)(iii)",
+      "exactQuery": "4IT1 June 2023 Paper 01 Q2(d)(iii)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CP0",
+      "paper": "E-4CP0_s24_qp_02",
+      "question": "5(c)",
+      "exactQuery": "4CP0 June 2024 Paper 02 Q5(c)",
+      "exact": "top1",
+      "paste": "miss"
+    },
+    {
+      "subject": "4CP0",
+      "paper": "E-4CP0_s22_qp_01",
+      "question": "5(a)(ii)",
+      "exactQuery": "4CP0 June 2022 Paper 01 Q5(a)(ii)",
+      "exact": "top1",
+      "paste": "top5"
+    },
+    {
+      "subject": "4CP0",
+      "paper": "E-4CP0_s24_qp_01",
+      "question": "5(c)",
+      "exactQuery": "4CP0 June 2024 Paper 01 Q5(c)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CP0",
+      "paper": "E-4CP0_s23_qp_01",
+      "question": "2(c)(i)",
+      "exactQuery": "4CP0 June 2023 Paper 01 Q2(c)(i)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CP0",
+      "paper": "E-4CP0_s22_qp_01",
+      "question": "3(a)(ii)",
+      "exactQuery": "4CP0 June 2022 Paper 01 Q3(a)(ii)",
+      "exact": "top1",
+      "paste": "top1"
+    },
+    {
+      "subject": "4CP0",
+      "paper": "E-4CP0_s21_qp_02",
+      "question": "3(a)",
+      "exactQuery": "4CP0 June 2021 Paper 02 Q3(a)",
+      "exact": "top1",
+      "paste": "top1"
+    }
+  ]
+}

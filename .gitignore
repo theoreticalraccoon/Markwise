@@ -1,4 +1,4 @@
-# Local env / secrets — never commit these
+# Local env and secrets, never commit these
 .env
 .env.*
 *.local
@@ -14,12 +14,9 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Local agent/session notes and reports
+# Local agent notes
 AGENTS.md
 .gstack/
-docs/PLAN.md
-docs/STATUS.md
-docs/COMPLETION.md
 
 # Ingestion
 ingest/node_modules/
@@ -33,10 +30,3 @@ dist/
 
 # Local copy of Pearson's public catalogue, used by the loader
 ingest/.pearson-catalogue.json
-
-# One-off local corpus maintenance helpers
-ingest/audit-*.mjs
-ingest/discover-pearson.mjs
-ingest/recon-pearson.mjs
-ingest/force-reingest.sh
-ingest/run-subjects.sh

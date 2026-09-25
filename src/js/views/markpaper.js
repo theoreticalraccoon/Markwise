@@ -1,23 +1,10 @@
 /**
- * Mark paper: photograph your written answers, get the whole paper marked.
+ * Mark a paper: photograph your answers and get the whole paper marked. The
+ * paper is identified from its cover, results are saved server-side, and
+ * photos are downscaled to 1600px in the browser (phones give 4-8 MB a page).
  *
- * Three steps on one screen: pick the subject, add the pages, get it back
- * marked. The student never types anything, and never tells Markwise which
- * paper it is: that is printed on the front of the thing they just
- * photographed.
- *
- * Two routes:
- *   #/markpaper        upload, and the papers you have had marked before
+ *   #/markpaper        upload, plus past results
  *   #/markpaper/<id>   one saved result
- *
- * Results are saved server-side. They used to live only in this module's
- * memory, so a refresh threw away an hour of the student's work and a minute
- * of Gemini's.
- *
- * Photos are downscaled in the browser before upload. A modern phone camera
- * produces 4-8 MB per page, and six of those would exceed the request limit and
- * take a minute to upload over school wifi; 1600px on the long edge is still
- * comfortably legible handwriting at a tenth of the size.
  */
 
 import { esc, on } from "../ui/dom.js";
@@ -289,8 +276,7 @@ async function submit() {
       subject: corpusCode(state.subject),
       files: state.files.map((f) => ({ mimeType: f.mimeType, data: f.data })),
     });
-    // Saved server-side, so send the student to the permanent copy rather than
-    // to a screen that a refresh would wipe.
+    // Go to the saved copy, which survives a refresh.
     if (result.id) {
       navigate(`markpaper/${result.id}`);
       return;

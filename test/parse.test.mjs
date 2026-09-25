@@ -1,16 +1,8 @@
 /**
- * Parse check for everything the unit tests cannot import.
+ * Parses what the unit tests can't import: browser modules (CDN imports) and
+ * Deno edge functions. A parse, not a type check; Deno does that in CI.
  *
  *   node test/parse.test.mjs
- *
- * The browser modules import Supabase from a CDN and the edge functions are
- * Deno TypeScript, so neither can be loaded in Node. Both are therefore the
- * easiest places in the repo for a syntax error to survive a green test run
- * all the way to a deploy. This parses every one of them.
- *
- * It is a parse, not a type check: esbuild strips types rather than verifying
- * them, and Deno does the real check in CI. Catching a stray brace in a file
- * nobody can run locally is still worth the two seconds.
  */
 import { readFile, readdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
@@ -78,11 +70,8 @@ console.log(`edge functions: ${ts.length - tsBad} of ${ts.length} parse`);
 
 /* ------------------------------------------------- stray control characters -- */
 
-// A regex written as "\\b" in a patch script silently becomes a literal
-// backspace (0x08) when the escaping is off by one. The file still parses, the
-// regex just never matches, and the feature is dead with every check green.
-// This has happened three times. Source files have no business containing
-// control characters other than tab, newline and carriage return.
+// A "\\b" in a patch script can become a literal backspace: still parses,
+// never matches. It happened three times, so check for control characters.
 const SOURCE = /\.(js|mjs|cjs|ts|sql|css|html|json|md|webmanifest|yml)$/;
 async function sourceFiles(dir) {
   const out = [];

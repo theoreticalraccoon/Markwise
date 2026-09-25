@@ -1,26 +1,9 @@
 /**
- * POST /functions/v1/mark-paper
- *
- * Marks a whole past paper from photos or a scan of the student's handwriting.
- *
- * The student chooses a subject and uploads their paper. Which paper it is,
- * they should not have to tell us. It is printed on the front of the thing
- * they just photographed. So the first pass reads the paper's identity and
- * transcribes the answers in one call, and the identity is matched against the
- * corpus for that subject.
- *
- * Two passes, deliberately:
- *
- *   1. Read. The images go to Gemini once and come back as the paper's
- *      identity plus the answers, keyed by question number. Images are by far
- *      the most expensive part of the request, so they are sent exactly once.
- *   2. Mark. The transcribed text is marked in small batches against the real
- *      mark schemes stored for that paper. Batching keeps each response inside
- *      the output limit. A 25-question paper marked in one call runs out of
- *      room halfway down and returns truncated JSON.
- *
- * Every question is marked against its own stored scheme. A question with no
- * scheme is reported as unmarkable rather than guessed at.
+ * POST /functions/v1/mark-paper: mark a whole past paper from photos.
+ * 1. Read: images go to Gemini once, returning the paper's identity and the
+ *    answers by question number.
+ * 2. Mark: the text is marked in small batches against the stored schemes.
+ * A question with no scheme is reported unmarkable, never guessed.
  *
  * Body: { subject, files: [{ mimeType, data }], paperId? }
  */
@@ -230,13 +213,8 @@ Deno.serve(async (req) => {
   const written = new Map(transcribed.map((a) => [key(a.questionNo), a.answer.trim()]));
 
   /**
-   * What the student wrote for a question part.
-   *
-   * Students often write one answer against "4(b)" for a paper that splits it
-   * into 4(b)(i) and 4(b)(ii). An exact-match lookup called both parts blank
-   * and marked them zero. So when a part has no answer of its own, the nearest
-   * enclosing part's answer is used: each part is still marked against its own
-   * scheme, so nothing is credited that the scheme does not award.
+   * The student's answer for a part. One answer written against 4(b) is used for
+   * 4(b)(i) and (ii) too; each is still marked against its own scheme.
    */
   const answerOf = (questionNo: string): string | null => {
     let n = String(questionNo ?? "");
@@ -288,12 +266,13 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Every batch failed: the student got nothing, so give the allowance back
-  // rather than saving and billing a paper of zeros.
+  // Every batch failed: refund rather than bill a paper of zeros.
   if (batchesRun > 0 && batchesFailed === batchesRun) {
     await release(user, "markpaper");
     return fail(req, "Marking is unavailable right now. Your photos were not used up: try again shortly.", 502);
   }
+  // Nothing had a mark scheme, so nothing was marked: return the result, don't charge for it.
+  if (batchesRun === 0) await release(user, "markpaper");
 
   // ---- assemble -----------------------------------------------------------
   let awarded = 0;
@@ -356,10 +335,7 @@ Deno.serve(async (req) => {
     if (error) console.error("attempts insert failed:", error.message);
   }
 
-  // ---- keep the paper itself ----------------------------------------------
-  // The per-question attempts above feed the weakness profile, but they do not
-  // reconstitute the paper. Without this row a refresh destroyed the whole
-  // result, which is an hour of the student's work and a minute of ours.
+  // Save the whole result too, or a refresh loses it.
   const summary = {
     paper_id: paper.id,
     subject_code: paper.subject_code,
@@ -401,13 +377,8 @@ interface HeldPaper {
 }
 
 /**
- * Which stored paper is the student holding?
- *
- * Scored rather than matched exactly, because a photographed cover page
- * rarely yields every field. A cropped shot may show the paper number but
- * not the year. Year and paper number carry the most weight; a candidate that
- * contradicts a field we did read is rejected outright, since marking against
- * the wrong paper is the failure this whole app exists to avoid.
+ * Which stored paper is this? Scored, because a photographed cover rarely shows
+ * every field. A candidate that contradicts anything we did read is out.
  */
 function matchPaper(
   held: HeldPaper[],
@@ -416,11 +387,7 @@ function matchPaper(
     variant?: number | null; paperRef?: string | null;
   },
 ): HeldPaper | null {
-  // A paper reference read off the cover is decisive. "1H" and "1F" are set the
-  // same day for different tiers, so once the reference is known only a paper
-  // with that exact reference can be the one, and it must not contradict the
-  // year or series either. Falling back to "paper 1" here would pick whichever
-  // tier came first.
+  // A reference read off the cover is decisive: 1H and 1F sit the same day.
   const ref = want.paperRef?.trim().toUpperCase();
   if (ref) {
     const sameRef = held.filter((p) => (p.paper_ref ?? "").toUpperCase() === ref);
@@ -461,8 +428,7 @@ function matchPaper(
       best.push(p);
     }
   }
-  // At least two identifying fields had to agree, and exactly one paper fits:
-  // a tie between 1F and 1H is not a match, it is a question to put to the student.
+  // Two fields must agree and exactly one paper fit; a 1F/1H tie is not a match.
   return bestScore >= 5 && best.length === 1 ? best[0] : null;
 }
 

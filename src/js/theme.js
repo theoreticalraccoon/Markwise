@@ -1,7 +1,4 @@
-/**
- * Theme. The stored value is applied before first paint by a tiny inline
- * script in index.html; this module keeps it in sync afterwards.
- */
+// Theme. An inline script in index.html applies it before first paint.
 
 import { STORAGE } from "./config.js";
 

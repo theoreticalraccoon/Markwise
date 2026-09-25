@@ -1,18 +1,8 @@
 /**
- * Recall: short real questions, self-rated, on a spacing schedule.
- *
- * Two deliberate constraints:
- *
- *   1. The cards are real exam questions with their real mark schemes. Nothing
- *      here is generated, so there is nothing to hallucinate and the answer
- *      you are shown is the one an examiner would credit.
- *   2. Self-ratings never touch `topic_mastery`. Mastery is the app's claim
- *      that every number it shows came from marks awarded against a real mark
- *      scheme, and "I knew that" is not a mark. Recall keeps its own schedule
- *      in `recall_reviews` and stays out of the way.
- *
- * It also costs no AI call at all, which makes it the one thing a student can
- * do freely after the daily allowance is spent.
+ * Recall: short real questions with their real schemes, self-rated on a
+ * spacing schedule. Nothing is generated, and it makes no AI call, so it still
+ * works once the daily allowance is spent. Self-ratings stay out of topic
+ * mastery: "I knew that" isn't a mark.
  */
 
 import { esc, on } from "../ui/dom.js";
@@ -59,8 +49,7 @@ export async function render(container, { query = {} } = {}) {
   state.subject = query.subject
     ? corpusCode(query.subject)
     : state.subject ?? store.prefs.lastCorpus ?? (grounded[0] ? corpusCode(grounded[0].code) : null);
-  // A remembered subject the student no longer takes (or that lost its papers)
-  // would otherwise load a deck the dropdown does not show.
+  // Drop a remembered subject the student no longer has papers for.
   if (!grounded.some((s) => corpusCode(s.code) === state.subject)) {
     state.subject = grounded[0] ? corpusCode(grounded[0].code) : null;
   }
@@ -82,15 +71,12 @@ export async function render(container, { query = {} } = {}) {
   wire();
   await loadDeck();
 
-  // Space and 1-4 are the whole interface once you are going: the point of
-  // recall practice is speed, and reaching for the mouse forty times is not.
+  // Space and 1-4 are the whole interface once you're going.
   const keys = (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const tag = document.activeElement?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-    // Space and Enter are how a keyboard user presses a focused button. Taking
-    // them here meant a button that had focus (Sign out, a nav link, Settings)
-    // could no longer be activated while a card was showing.
+    // Leave Space/Enter alone on focused buttons outside the card.
     if (e.target?.closest?.("button, a, [role=button], [role=menuitem]") && !e.target.closest(".recall-card")) return;
     if (e.key === " " || e.key === "Enter") {
       if (!state.revealed && state.deck[state.index]) {
@@ -260,8 +246,7 @@ async function grade(value) {
     return;
   }
 
-  // "Again" puts the card back at the end of this deck as well as tomorrow:
-  // a card you have just failed is worth seeing once more in this sitting.
+  // "Again" also puts the card at the end of today's deck.
   state.deck.splice(state.index, 1);
   if (value === 0) state.deck.push({ ...card, reps: 0 });
   else state.done++;

@@ -1,17 +1,9 @@
 /**
- * Logic tests. No database, no network, no browser.
+ * Logic tests: no database, network or browser. Filenames, question and scheme
+ * parsing, pairing, retrieval query parsing, dates, escaping.
+ * The retrieval block needs esbuild (to compile TypeScript) and skips without it.
  *
  *   node test/logic.test.mjs
- *
- * Covers the parts where a silent bug is expensive: filename parsing (a
- * mis-detected kind files a mark scheme as a question paper), question
- * segmentation (a lost stem makes a question meaningless), question-to-mark-
- * scheme pairing (a wrong pair marks an answer against the wrong scheme),
- * retrieval query parsing, date maths, the exam-series parser behind the
- * countdown, and HTML escaping.
- *
- * Requires only Node. The retrieval block additionally needs esbuild (it
- * compiles a TypeScript module) and is skipped if it is not installed.
  */
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "dummy";
@@ -303,9 +295,7 @@ eq("week is 7 days", week.length, 7);
 ok("monthGrid covers the month", d.monthGrid(new Date("2026-02-10T12:00:00")).flat().some((x) => x.getDate() === 28));
 eq("minutesToHuman", [d.minutesToHuman(45), d.minutesToHuman(90), d.minutesToHuman(120)], ["45m", "1h 30m", "2h"]);
 
-// The exam countdown reads a free-text series off the profile. Getting this
-// wrong points the countdown at the wrong year, which is worse than showing
-// nothing, so anything unreadable must come back null rather than a guess.
+// Unreadable input must give null, never a guess.
 eq("examStart Jun 2027 (the summer series starts in May)", d.examStart("Jun 2027").getMonth(), 4);
 eq("examStart Jun 2027 year", d.examStart("Jun 2027").getFullYear(), 2027);
 eq("examStart long month", d.examStart("June 2027").getMonth(), 4);
@@ -327,8 +317,7 @@ ok("markdown bold", md.includes("<strong>bold</strong>"));
 ok("markdown list", md.includes("<li>one</li>") && md.includes("<li>two</li>"));
 ok("citation pills", (md.match(/data-cite="/g) ?? []).length === 3, md);
 
-// Corpus text comes out of PDFs and student answers come from students; both
-// contain angle brackets, and both reach templates through these two.
+// PDF text and student answers both contain angle brackets.
 eq("escLines keeps newlines as breaks", dom.escLines("a<b\nc"), "a&lt;b<br>c");
 ok("markdown unwraps stray LaTeX", dom.renderMarkdown("the $n$th term").includes("the nth term"));
 
@@ -341,13 +330,7 @@ eq("three priorities", cfg.PRIORITIES.map((x) => x.id), [0, 1, 2]);
 ok("weekday names line up", cfg.WEEKDAYS.length === 7 && cfg.WEEKDAYS_LONG.length === 7);
 eq("weekday 0 is Sunday", [cfg.WEEKDAYS[0], cfg.WEEKDAYS_LONG[0]], ["Sun", "Sunday"]);
 
-/* ======================================================================= *
- *  Pearson Edexcel International GCSE
- *
- *  The repo was written for Cambridge and every assumption in it was
- *  Cambridge's. Each block below pins down one of the ways that broke, using
- *  Edexcel's own layouts and names.
- * ======================================================================= */
+// Edexcel. The repo started out Cambridge-shaped; each block pins one thing that broke.
 
 console.log("edexcel: filenames and paper identity");
 {
@@ -391,8 +374,7 @@ console.log("edexcel: Pearson's own download names");
   eq("Jan exam", parseFilename("4CH1_2C_que_20250113.pdf").session, "Jan");
   eq("Oct exam", parseFilename("4BS1_01_que_20241021.pdf").session, "Nov");
 
-  // The scheme for a May paper is dated AUGUST. Reading that as an exam date
-  // filed it under November and it never met its question paper.
+  // A May paper's scheme is dated August and used to be filed under November.
   const qp = parseFilename("4MA1_1H_que_20240514.pdf");
   const ms = parseFilename("4MA1_1H_rms_20240815.pdf");
   eq("scheme dated August is the SUMMER series", ms.session, "Jun");
@@ -406,9 +388,7 @@ console.log("edexcel: Pearson's own download names");
 
 console.log("edexcel: question papers");
 {
-  // Edexcel: marks on their own line, and a question total that is NOT a part.
-  // The question numbers are marked the way the PDF reader marks a number that
-  // stands in the left margin.
+  // Edexcel: marks on their own line, and a question total that isn't a part.
   const edexcel = [{ n: 1, text: `
 ⟦Q1⟧ A car accelerates from rest.
 (a) State what is meant by acceleration.
@@ -429,8 +409,7 @@ TOTAL FOR PAPER IS 7 MARKS
   eq("edexcel marks", parts.map((q) => q.marks), [1, 2, 4]);
   ok("a question total is never a part", parts.every((q) => !/Total for Question/.test(q.text)));
 
-  // "17 chose knitting" is DATA in question 2, not question 17. A margin marker
-  // is what tells them apart; plain text cannot.
+  // "17 chose knitting" is data in Q2. Only the margin marker tells them apart.
   ok("a number inside a sentence does not start a question", !parts.some((q) => q.questionNo.startsWith("17")));
 
   const c = consistency(parts, edexcel);
@@ -455,8 +434,7 @@ TOTAL FOR PAPER IS 7 MARKS
 
 console.log("edexcel: mark schemes");
 {
-  // Edexcel restates the header above each question and closes each with
-  // "Total N marks", and the first line under a header can be stacked-fraction
+  // Headers restated per question, "Total N marks" closers, and stacked-fraction
   // working that looks like a question number.
   const ms = parseMarkScheme([{ n: 1, text: `
 Question Working Answer Mark Notes
@@ -654,8 +632,7 @@ console.log("edexcel: how a student talks to the assistant");
     routing.splitMarkRequest("Mark my answer to 4PH1 Jun 2024 Paper 1P Q3(b):\nThe ray bends towards the normal"),
     { question: "4PH1 Jun 2024 Paper 1P Q3(b)", answer: "The ray bends towards the normal" });
 
-  // This regex once shipped with a literal backspace where \b belonged, and
-  // technique mode never fired for anyone.
+  // This regex once shipped with a literal backspace for \b.
   ok("technique: full marks", routing.looksLikeTechnique("How do I get full marks on a 6-mark question?"));
   ok("technique: examiner", routing.looksLikeTechnique("what does the examiner want here"));
   ok("technique: structure", routing.looksLikeTechnique("How should I structure my answer?"));
@@ -680,8 +657,7 @@ console.log("edexcel: how exam material is shown");
 
 console.log("edexcel: exam series countdown");
 {
-  // Edexcel sits January, May/June and October/November. "June" means the
-  // summer series, which STARTS in May.
+  // "June" means the summer series, which starts in May.
   eq("June is the summer series, from May", d.examStart("Jun 2027").getMonth(), 4);
   eq("May/June reads the first month", d.examStart("May/June 2027").getMonth(), 4);
   eq("Oct/Nov starts in October", d.examStart("Oct/Nov 2026").getMonth(), 9);
@@ -703,8 +679,7 @@ console.log("markdown keeps money");
 
 console.log("router: one click, one action");
 {
-  // The router used to leave the previous view's listeners on the shared outlet,
-  // so the third visit to a screen ran every handler three times.
+  // Stacked listeners used to run every handler three times on a third visit.
   const src = await (await import("node:fs/promises")).readFile(join(REPO, "src/js/router.js"), "utf8");
   ok("the outlet is replaced on every navigation", /replaceWith\(/.test(src) && /cloneNode\(false\)/.test(src));
   ok("a superseded render is discarded", /navToken/.test(src) && /id !== navToken/.test(src));
@@ -713,11 +688,8 @@ console.log("router: one click, one action");
 
 console.log("consistency: optional-question papers are not \"wrong\"");
 {
-  // Shaped like a real English Literature paper: 4 questions offered as two
-  // EITHER/OR pairs, "Answer ONE question from each section", each worth 30,
-  // paper total 60. A candidate answers one, so every part on the page sums
-  // to well over the printed total — that is the paper working as designed,
-  // not the parser inventing marks.
+  // English Literature shape: four 30-mark questions, answer one per section,
+  // total 60. Every part summing past 60 is correct.
   const choicePages = [{ n: 1, text: `
 Answer ONE question from each section.
 ⟦Q1⟧ How is Beatrice presented?
@@ -741,13 +713,11 @@ TOTAL FOR PAPER = 60 MARKS
   eq("the parsed sum is allowed to exceed it", cc.sum, 120);
   ok("a choice paper with nothing else wrong passes", cc.ok === true, JSON.stringify(cc));
 
-  // A choice paper that IS missing a question must still fail: the rubric
-  // only excuses the marks-total check, not the other two.
+  // A missing question still fails; the rubric only excuses the total check.
   const gap = consistency(choiceParts.filter((p) => p.questionRoot !== "2"), choicePages);
   ok("a missing question still fails, choice or not", gap.ok === false, JSON.stringify(gap));
 
-  // "Answer ALL questions" (Business, Economics, the sciences) must not be
-  // mistaken for a choice paper.
+  // "Answer ALL questions" isn't a choice paper.
   ok("a plain paper is not flagged as offering a choice",
     !offersChoice([{ n: 1, text: "Answer ALL questions. Write your answers in the spaces provided." }]));
   const allPages = [{ n: 1, text: `
@@ -816,18 +786,13 @@ console.log("pdf.js: margin question numbers vs. dot-leader answer space");
   const { itemsToText, QUESTION_MARK, QUESTION_MARK_END } = await import(ROOT + "ingest/lib/pdf.js");
   const marker = (n) => `${QUESTION_MARK}${n}${QUESTION_MARK_END}`;
 
-  // A pdf.js text item, at plain-English coordinates (x, y from the page's
-  // bottom-left, matching the real API).
+  // A pdf.js text item at page coordinates (origin bottom-left).
   const item = (str, x, y, { height = 12, width } = {}) => ({
     str, height, width: width ?? str.length * 6, transform: [1, 0, 0, 1, x, y],
   });
 
-  // A page shaped like the one that lost Further Pure Maths question 6: a
-  // question number at the true left margin (70), then mostly blank space
-  // for the student's working, printed as a long run of dots at that same
-  // x. Before the fix, those dot-leader lines dominated the "where does
-  // body text start" estimate and pulled it onto the number's own column,
-  // so the number no longer read as left of it and was dropped.
+  // The page that lost FPM Q6: a margin number, then mostly dot-leader answer
+  // lines at the same x, which used to drag the body-start estimate onto it.
   const DOTS = ".".repeat(220);
   const dotLeaderPage = [
     item("6", 70, 800),
@@ -838,11 +803,7 @@ console.log("pdf.js: margin question numbers vs. dot-leader answer space");
   ok("a margin number survives a page mostly full of dot-leader answer space",
     out.includes(marker("6")), out);
 
-  // The heuristic exists to reject mid-paragraph numeric data ("17 chose
-  // knitting and photography") that is not a question number. Confirm the
-  // dot-leader exclusion did not loosen that: a number that opens a real
-  // sentence, at the same x as the rest of the paragraph (not indented
-  // left of it), must still be rejected.
+  // And a number opening a real sentence at the body margin must still be rejected.
   const dataPage = [
     item("Figure 3 shows the results of a survey of favourite hobbies among students", 70, 700),
     item("17", 70, 680),
@@ -879,10 +840,8 @@ console.log("pearson grade boundaries");
   const { parsePearsonBoundaries, tierOfBoundaryRef, seriesFromBoundaryFilename } =
     await import(ROOT + "ingest/lib/boundaries.js");
 
-  // Shaped exactly like Pearson's "Notional component grade boundaries"
-  // documents: a subject heading, the repeated column header, then one row
-  // per paper as "<code> <name> Raw <max> <boundaries...>" followed by
-  // "Paper <ref>" on the next line.
+  // Shaped like Pearson's boundary PDF: heading, column header, then
+  // "<code> <name> Raw <max> <boundaries>" and "Paper <ref>".
   const page = (text) => ({ text });
   const pages = [
     page([
@@ -913,9 +872,15 @@ console.log("pearson grade boundaries");
   eq("foundation grade 5 boundary", foundation.boundaries["5"], 72);
   eq("foundation grade 1 boundary", foundation.boundaries["1"], 11);
 
-  eq("F/FR papers are Foundation tier", tierOfBoundaryRef("1FR"), "Foundation");
-  eq("H/HR papers are Higher tier", tierOfBoundaryRef("2H"), "Higher");
+  // predict_grade filters boundaries on tier = the paper's tier, and papers
+  // store "F"/"H". "Foundation"/"Higher" here meant tiered papers never graded.
+  const { paperIdentity } = await import(ROOT + "ingest/lib/filename.js");
+  eq("F/FR papers are tier F", tierOfBoundaryRef("1FR"), "F");
+  eq("H/HR papers are tier H", tierOfBoundaryRef("2H"), "H");
   eq("a numeric-only paper ref has no tier", tierOfBoundaryRef("01"), null);
+  for (const ref of ["1F", "1FR", "2H", "2HR"]) {
+    eq(`boundary tier matches paper tier for ${ref}`, tierOfBoundaryRef(ref), paperIdentity("E-4MA1", ref).tier);
+  }
 
   eq("wordy filename, June", seriesFromBoundaryFilename("grade-boundaries-june-2024-notional-component-int-gcse.pdf"),
     { year: 2024, session: "Jun" });
@@ -1000,8 +965,7 @@ console.log("reembed: gives up on a quota that is out for the day");
 console.log("embedding: --no-embed skips the network entirely");
 {
   const { embedAll } = await import(ROOT + "ingest/lib/gemini.js");
-  // noEmbed short-circuits before any call to Gemini, so this is safe to
-  // actually invoke in a unit test: it never reaches the network.
+  // noEmbed returns before any Gemini call, so this never hits the network.
   const result = await embedAll(["a question", "another question"], { noEmbed: true });
   eq("every text comes back with no vector, not an error", result, [null, null]);
 }

@@ -1,33 +1,13 @@
--- ============================================================================
--- Markwise: rebuilt around Pearson Edexcel International GCSE.
---
--- The schema was written for Cambridge. Edexcel differs in ways that were not
--- cosmetic, and an audit found that Edexcel data could not be stored, paired,
--- displayed or graded correctly:
---
---   1. Identity. A Cambridge paper is "4, variant 2". An Edexcel paper is "1H"
---      or "1PR": the tier or reserve letters ARE the identity, and 1F and 1H
---      are different papers set on the same day. Both used to collapse to
---      "paper 1" and overwrite one another.
---   2. NULLs. Edexcel has no variant, so the old unique key contained a NULL,
---      which Postgres treats as distinct from every other NULL. The key never
---      matched, so re-ingesting inserted a duplicate paper every time and
---      mark schemes never found their question papers.
---   3. Series. Edexcel sits January, May/June and October/November. The
---      session check only allowed Mar, Jun and Nov, so January was rejected.
---   4. Grading. Cambridge A*-G per component became Edexcel 9-1 per tier.
---   5. Catalogue. Every subject was a Cambridge code, so a student who picked
---      "Physics" was routed to a Cambridge corpus that has never existed.
---
--- Also fixed here, because the audit found them in the same files:
---   - corpus functions were executable by anonymous callers;
---   - the daily-allowance counter could be overrun by concurrent requests and
---     a refund could delete a charge that belonged to someone else;
---   - the revision schedule advanced once per marked answer, not once per day;
---   - re-ingesting a paper deleted every student's recall history for it.
---
--- Safe to run more than once. Run AFTER 20260921000000_finish.sql.
--- ============================================================================
+-- Rebuilt around Pearson Edexcel International GCSE. What was wrong for Edexcel:
+--   1. Identity: "1H" and "1F" are different papers; both collapsed to "paper 1".
+--   2. NULLs: no variant meant a NULL in the unique key, so re-ingest duplicated
+--      papers and schemes never found their question papers.
+--   3. Series: January was rejected by the session check.
+--   4. Grading: A*-G per component became 9-1 per tier.
+--   5. Catalogue: "Physics" pointed at a Cambridge corpus that didn't exist.
+-- Also: anon could call corpus functions, the quota counter raced, revision
+-- advanced per answer instead of per day, and re-ingest wiped recall history.
+-- Idempotent. Runs after 20260921000000_finish.sql.
 
 create extension if not exists pgcrypto;
 
@@ -44,9 +24,7 @@ alter table public.papers add column if not exists duration_min integer;
 alter table public.chunks add column if not exists paper_ref text not null default '';
 alter table public.chunks add column if not exists tier      text;
 
--- Backfill the reference from what is already stored. Edexcel files ingested
--- before this migration were named "..._13" for paper 1 Higher, so a variant of
--- 3 means H and 1 means F. Everything else keeps its digits.
+-- Backfill references. Old "_13" files meant paper 1 Higher: variant 3 is H, 1 is F.
 update public.papers
    set paper_ref = case
          when subject_code like 'E-%' and variant = 3 then paper_no::text || 'H'
@@ -174,11 +152,7 @@ $fn$;
 
 
 -- ---------------------------------------------------------------------------
--- 3. Retrieval that can name a paper
---
--- match_chunks could filter by year and a paper-code substring but not by the
--- series or the paper reference, so "June 2024 Paper 1P" returned every series
--- of 2024. Both are now real filters.
+-- 3. Retrieval can filter by series and paper reference ("June 2024 Paper 1P")
 -- ---------------------------------------------------------------------------
 
 drop function if exists public.match_chunks(
@@ -303,9 +277,7 @@ language sql stable security definer set search_path = public as $fn$
     and (p_exclude   is null or not (c.id = any(p_exclude)))
     and (p_tier      is null or c.tier = p_tier)
     and (p_paper_ref is null or upper(c.paper_ref) = upper(p_paper_ref))
-    -- A question about "the diagram above" is unanswerable as plain text, and
-    -- a mock made of them is a bad mock. Callers can turn this off when a
-    -- subject has too little text-only material to build a paper from.
+    -- "The diagram above" can't be answered as text. Callers can turn this off.
     and (not p_no_figure or c.content !~* '(diagram|figure|fig\.|graph paper|the grid|sketch)')
   order by random()
   limit p_limit;
@@ -361,14 +333,8 @@ begin
 end
 $gb$;
 
--- The grade a raw score would earn.
---
--- The old function took the highest year's rows across EVERY series, so a June
--- score could be graded against January's boundaries, and returned null
--- whenever max_marks was missing (which for Edexcel it always was). It now
--- takes the latest single series that matches, prefers a boundary for this
--- exact paper over the overall subject one, and compares against the paper's
--- own total. A score below the lowest boundary is a U.
+-- The grade a score earns: latest matching series only, this exact paper's
+-- boundaries first, against the paper's own total. Below the lowest is a U.
 drop function if exists public.predict_grade(text, integer, numeric);
 
 create or replace function public.predict_grade(
@@ -556,17 +522,14 @@ update public.profiles p
  where jsonb_exists(p.prefs, 'lastSubject')
    and public.cambridge_to_edexcel(p.prefs->>'lastSubject') is not null;
 
--- Cambridge rows that now have an Edexcel counterpart go quiet. They are
--- deactivated rather than deleted: deleting cascades through papers and chunks
--- and would orphan any text[] column that still names them.
+-- Cambridge rows with an Edexcel counterpart are deactivated, not deleted
+-- (deleting would cascade and orphan text[] references).
 update public.subjects s
    set active = false
  where s.board = 'Cambridge'
    and public.cambridge_to_edexcel(s.code) is not null;
 
--- The rest (Sinhala, Art, Drama, French, ...) are courses a student still
--- tracks homework for but which have no Edexcel corpus. They are honestly
--- school courses, not Cambridge ones.
+-- The rest (Sinhala, Art, French...) stay as school courses with no corpus.
 update public.subjects
    set board = 'School'
  where board = 'Cambridge' and active;
@@ -583,11 +546,7 @@ update public.profiles set board = 'Edexcel' where board = 'Cambridge';
 
 
 -- ---------------------------------------------------------------------------
--- 7. Who may change the corpus
---
--- The ingest edge function let any signed-in user replace any paper's
--- questions and mark schemes, and create subjects that then appeared in
--- everyone's onboarding. It is now restricted to admins.
+-- 7. Only admins may change the corpus (any signed-in user could before)
 -- ---------------------------------------------------------------------------
 
 create table if not exists public.admins (
@@ -607,15 +566,9 @@ $fn$;
 
 
 -- ---------------------------------------------------------------------------
--- 8. The daily allowance
---
--- claim_ai_call counted then inserted with nothing in between, so concurrent
--- requests both saw "one left" and both ran. And release_ai_call deleted the
--- newest row for the route, which could belong to a different, successful
--- request, or to none at all when the claim itself had failed open.
---
--- A claim now takes an advisory lock per user and route and returns the id of
--- the row it wrote; a release deletes exactly that row.
+-- 8. The daily allowance: claims lock per user and route and return their row
+--    id; a release deletes exactly that row. Before, concurrent requests could
+--    both take the last call, and a refund could hit someone else's charge.
 -- ---------------------------------------------------------------------------
 
 create or replace function public.claim_ai_call_id(p_user uuid, p_route text)
@@ -665,12 +618,8 @@ grant execute on function public.release_ai_call_id(uuid)     to service_role;
 
 
 -- ---------------------------------------------------------------------------
--- 9. Revision schedule: advance once per day, not once per answer
---
--- A ten-question mock on one topic ran the schedule ten times in a sitting, so
--- one decent mock pushed a topic out by months. The schedule now moves at most
--- once per topic per day; later answers the same day still count towards the
--- marks and the latest percentage.
+-- 9. Revision schedule moves at most once per topic per day (a ten-question
+--    mock used to push a topic out by months in one sitting)
 -- ---------------------------------------------------------------------------
 
 create or replace function public.fold_attempt_into_mastery()
@@ -797,12 +746,8 @@ $fn$;
 
 
 -- ---------------------------------------------------------------------------
--- 11. Nothing in the corpus is for anonymous callers
---
--- Postgres grants EXECUTE to PUBLIC on every new function, and Supabase's
--- default privileges add anon on top. The corpus functions are SECURITY
--- DEFINER, so an unauthenticated request could read question text and mark
--- schemes through them regardless of what the row-level policies say.
+-- 11. No corpus functions for anonymous callers. EXECUTE defaults to PUBLIC,
+--     and these are SECURITY DEFINER, so RLS alone didn't stop anon.
 -- ---------------------------------------------------------------------------
 
 do $lock$

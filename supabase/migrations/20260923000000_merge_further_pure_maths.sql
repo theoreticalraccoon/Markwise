@@ -1,12 +1,5 @@
--- Further Pure Maths (X-FPM) was a legacy school-course alias for the real
--- Edexcel subject Further Pure Mathematics (E-4PM1). Both appeared in the
--- student catalogue even though they read from the same corpus. Keep the alias
--- row for historical compatibility, but move user data to the canonical code
--- and hide the duplicate.
---
--- Safe to run repeatedly. Rollback, if ever required, is to reactivate X-FPM;
--- no row is deleted. Canonicalised user references are intentionally not
--- reversed because doing that would recreate the duplicate course selection.
+-- X-FPM duplicated the real subject E-4PM1 in the catalogue. Move user data to
+-- E-4PM1 and hide X-FPM (kept, not deleted). Idempotent; to roll back, reactivate X-FPM.
 
 -- Profiles store subject codes in an array. Preserve their original order,
 -- replace the alias, and collapse a duplicate if both codes were selected.

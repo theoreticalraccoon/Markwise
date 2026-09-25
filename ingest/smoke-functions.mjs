@@ -1,19 +1,9 @@
 /**
- * Smoke test for the DEPLOYED edge functions.
+ * Smoke test for the deployed edge functions. Creates a throwaway user and
+ * calls ask, mark, mock and mark-mock over HTTP the way the browser does.
+ * Run after every deploy: unit tests can't catch a missing secret or a retired model.
  *
- *   npm run test:functions        (from the repo root)
- *   node smoke-functions.mjs      (from ingest/)
- *
- * Creates a throwaway confirmed user, signs in as them, and exercises ask /
- * mark / mock / mark-mock over HTTP exactly as the browser does: same auth
- * header, same SSE parsing, then deletes the user again. Run it after every
- * deploy: the
- * unit tests cannot catch a missing secret, a retired model, or an RLS policy
- * that blocks the service.
- *
- * Lives beside the ingestion package because it needs the same Supabase client
- * and the same .env. The service-role key is what lets it create and delete the
- * throwaway user.
+ *   npm run test:functions
  */
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
@@ -151,8 +141,8 @@ try {
   /* ---------------------------------------------------------- mark-mock -- */
   console.log("\n\u25b8 mark-mock  (whole paper, one allowance)");
   {
-    // Build a small mock, answer its first question badly on purpose, and
-    // check the whole paper comes back marked from a single call.
+    // Answer the first question badly on purpose; the whole paper should come
+    // back marked from one call.
     const made = await fetch(`${FN}/mock`, {
       method: "POST", headers,
       body: JSON.stringify({ subject: "E-4MA1", marks: 12 }),

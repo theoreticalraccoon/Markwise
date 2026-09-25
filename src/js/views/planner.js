@@ -1,16 +1,6 @@
-/**
- * Planner. The original homework board, unchanged in shape.
- *
- * One card per subject, School / Tuition / My own tabs, blue pen for homework,
- * red for assessments and green for revision, with a coloured spine so a glance
- * at the board tells you where the pressure is. Tuition has no assessments, so
- * that tab shows homework only and the add form hides the type choice.
- *
- * The form carries what the schema always allowed and the old form never asked
- * for: a priority, a rough estimate and a topic. The estimate is what makes the
- * calendar's workload heatmap mean anything, so it is offered as one-tap chips
- * rather than a number field nobody fills in.
- */
+// Planner: one card per subject, School / Tuition / My own tabs, blue for
+// homework, red for assessments, green for revision. The time estimate on the
+// form is what drives the calendar's workload shading.
 
 import { esc, on } from "../ui/dom.js";
 import { toast, openModal, closeModal, confirmModal, emptyState, skeleton } from "../ui/feedback.js";
@@ -207,8 +197,7 @@ function paint() {
     return;
   }
 
-  // Chosen subjects always show; anything that already holds work shows too, so
-  // dropping a subject in Settings never hides tasks you still have.
+  // Chosen subjects always show, plus any that still hold tasks.
   const withWork = new Set(inTab.map((t) => t.subject));
   const subjects = mySubjectRows().slice();
   for (const code of withWork) {
@@ -235,13 +224,7 @@ function summarise(pending, source) {
   return bits.join(" · ") + tail;
 }
 
-/**
- * Topics whose spaced-revision date has come round.
- *
- * The schedule is maintained by the database on every marked answer, so this
- * is a read, not a calculation. It sits above the board because a revision the
- * app worked out for you is worth more than one you remembered to set.
- */
+/** Topics due for spaced revision. The database keeps the schedule. */
 async function paintRevisions() {
   const slot = root?.querySelector("#revisionDue");
   if (!slot) return;
@@ -362,11 +345,8 @@ function taskRow(task) {
 /* ------------------------------------------------------------- task form -- */
 
 /**
- * Add or edit a task.
- *
- * `options.due` preselects a date (the calendar opens the form on a day) and
- * `options.onSaved` lets a caller outside the planner repaint itself, since the
- * planner's own `paint()` only touches the planner's markup.
+ * Add or edit a task. `options.due` preselects a date (from the calendar);
+ * `options.onSaved` lets a caller outside the planner repaint.
  */
 export function openTaskForm(task = null, presetSubject = null, options = {}) {
   const editing = !!task;
@@ -468,8 +448,7 @@ export function openTaskForm(task = null, presetSubject = null, options = {}) {
       const q = (sel) => dialog.querySelector(sel);
       let estimateMin = estimate;
 
-      // Tuition homework only: hide the choice rather than offer a
-      // combination the tab would never display.
+      // Tuition is homework only, so hide the type choice.
       const syncType = () => {
         const tuition = q("#src-tuition").checked;
         q("#typeField").hidden = tuition;
@@ -532,8 +511,7 @@ export function openTaskForm(task = null, presetSubject = null, options = {}) {
             savePrefs({ lastSubject: fields.subject });
           }
           closeModal();
-          // The form is shared with the calendar, so `root` may belong to a
-          // view the planner no longer owns. Only repaint what is really ours.
+          // Shared with the calendar; only repaint if the planner is on screen.
           if (root?.querySelector("#plannerBody")) paint();
           options.onSaved?.();
         } catch (e) {
@@ -552,17 +530,10 @@ export function openTaskForm(task = null, presetSubject = null, options = {}) {
   });
 }
 
-/**
- * Turn a weakness into a revision task.
- *
- * Used by Progress, by the assistant and by the spaced-revision list. Marked
- * `origin: "ai"` so the board can show that Markwise set it rather than the
- * student, and carrying the topic so the same topic is not queued twice.
- */
+/** Turn a weak topic into a revision task (origin "ai"), without queueing the same topic twice. */
 export async function addRevisionTask({ subject, topic, text, due }, announce = true) {
   await createTask({
-    // Weak topics are recorded against the corpus subject. File the task under
-    // a course the student actually has.
+    // File it under a course the student actually has.
     subject: courseFor(subject),
     type: "revision",
     source: "self",

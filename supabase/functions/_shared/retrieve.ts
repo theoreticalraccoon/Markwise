@@ -1,21 +1,11 @@
 /**
- * Retrieval. The part that makes Markwise different from asking Gemini.
- *
- * Pipeline, in order:
- *
- *   1. Parse the question for hard filters. "mark my answer to 0625 s19 p42
- *      Q4(b)" contains an exact paper and question; a vector search would
- *      rank it against 200k similar-sounding physics questions and lose. Any
- *      identifier found becomes a SQL filter instead of a similarity hint.
+ * Retrieval, the part that makes this different from asking Gemini directly:
+ *   1. Pull exact identifiers out of the question ("4PH1 June 2024 Paper 1P Q4(b)")
+ *      and use them as SQL filters, not similarity hints.
  *   2. Hybrid search (vector + full text, RRF-fused) inside those filters.
- *   3. Sibling expansion. Question parts are retrieved individually but only
- *      make sense with the stem: "4(b) Explain why this happens" is useless
- *      without 4(a). Siblings of the top hits are pulled in whole.
- *   4. Budgeted packing. Free-tier context is finite, so chunks are added
- *      highest-score-first until the character budget is spent.
- *
- * Nothing here paraphrases the corpus. The text handed to the model is the
- * verbatim question and mark scheme, which is the entire point.
+ *   3. Pull in sibling parts, since 4(b) often needs 4(a)'s stem.
+ *   4. Pack highest score first until the character budget runs out.
+ * The model always gets the verbatim question and scheme.
  */
 
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
@@ -44,7 +34,7 @@ export interface Chunk {
 
 export interface Citation {
   id: string;
-  label: string;        // '0625 Jun 2019 P42 Q4(b)'
+  label: string;        // '4PH1 Jun 2024 Paper 1P Q4(b)'
   paperCode: string | null;
   questionNo: string | null;
   marks: number | null;
@@ -68,21 +58,13 @@ export interface QueryFilters {
   subjectCode?: string;
 }
 
-/**
- * Pull exam identifiers out of free text. Handles the filename form
- * (E-4PH1_s24_qp_1P, 0625_s19_qp_42) and the way students actually write it
- * ("4PH1 paper 1P June 2024 question 7b", "physics january 2024 paper 2H Q3").
- */
+/** Exam identifiers from free text: filename forms and how students write them ("4PH1 paper 1P June 2024 question 7b"). */
 export function parseQuery(text: string): QueryFilters {
   const f: QueryFilters = {};
   const t = text.toLowerCase();
 
-  // Filename form: 0625_s19_qp_42 / 0625 w21 ms 22 / e-4ph1_s24_qp_1p / e-4ma1_j24_ms_2h
-  //
-  // The subject token is a Cambridge 4-digit code or a board-prefixed one, and
-  // the separators are underscores. Which are word characters, so `\b` cannot
-  // be used to bound them. The paper reference is digits then optional letters
-  // (Edexcel 1H, 1PR) or two digits (Cambridge 42).
+  // Filename forms: e-4ph1_s24_qp_1p, e-4ma1_j24_ms_2h, 0625_s19_qp_42. \b doesn't
+  // work around underscores, so the separators are matched explicitly.
   const file = t.match(
     /(?:^|[^a-z0-9])((?:[a-z]{1,3}-)?[a-z0-9]{3,12})[_ -]([jmsw])(\d{2})[_ -]?(?:qp|ms|er|papers?|p)?[_ -]?(\d[0-9a-z]{0,2})(?:[^0-9a-z]|$)/,
   );
@@ -109,8 +91,7 @@ export function parseQuery(text: string): QueryFilters {
   }
   if (!f.session) {
     if (/\b(january|jan)\b/.test(t)) f.session = "Jan";
-    // "may" is a modal verb ("what may be observed"), so it only counts as a
-    // month when a year or "june" follows it.
+    // "may" is also a verb, so it only means May with a year or "june" after it.
     else if (/\b(june|jun|summer|may\s*\/\s*june|may\s+20\d\d)\b/.test(t)) f.session = "Jun";
     else if (/\b(november|nov|winter|oct\/nov|october)\b/.test(t)) f.session = "Nov";
     else if (/\b(march|feb\/mar|february)\b/.test(t)) f.session = "Mar";
@@ -134,10 +115,8 @@ export function parseQuery(text: string): QueryFilters {
     }
   }
 
-  // Question reference: q4b, question 4(b)(ii), Q7 (a), q3 a i.
-  //
-  // A roman numeral only counts inside brackets. Without that, "question 4 is
-  // worth 3 marks" read the "i" of "is" as part (i) and asked for 4(i).
+  // q4b, question 4(b)(ii), Q7 (a). Roman numerals only count in brackets,
+  // or "question 4 is" becomes 4(i).
   const q = t.match(/\b(?:q|question)\s*\.?\s*(\d{1,2})(?:\s*\(([a-h])\)|([a-h])(?![a-z]))?\s*(?:\(((?:i|v|x)+)\))?/);
   if (q) {
     const part = q[2] ?? q[3];
@@ -195,12 +174,8 @@ const CHUNK_FIELDS =
   "marks,command_word,topic,syllabus_refs,content,ms_content,er_content,page";
 
 /**
- * When the student names both a paper and a question, look it up directly.
- *
- * Similarity search cannot do this job: "Q1(a)" carries almost no semantic
- * signal, so the right question ranks below whatever happens to be about the
- * same subject. This is the "mark my answer to 0625 Jun 2019 Q4(b)" path, and
- * getting the wrong question there means marking against the wrong scheme.
+ * A named paper and question are looked up directly. Similarity can't do this:
+ * "Q1(a)" carries almost no meaning, and the wrong question means the wrong scheme.
  */
 async function exactLookup(
   db: SupabaseClient,
@@ -210,8 +185,7 @@ async function exactLookup(
   const none = { rows: [] as Chunk[], ambiguous: [] as string[] };
   if (!filters.questionNo) return none;
 
-  // A question number means nothing without the paper it is in. Something has
-  // to narrow it: a paper code, or a year and a series.
+  // A question number needs a paper: a code, or a year and series.
   const oneYear = filters.years?.length === 1 ? filters.years[0] : null;
   if (!filters.paperCode && !(oneYear && filters.session)) return none;
 
@@ -231,18 +205,15 @@ async function exactLookup(
   if (error) throw new Error(`Question lookup failed: ${error.message}`);
   if (!data) return none;
 
-  // More than one paper still matches ("June 2024 Q4" with a 1H and a 2H that
-  // both have a Q4). Picking one would mark the student's answer against
-  // another paper's mark scheme, which is the worst thing this app can do, so
-  // nothing is pinned and the caller is told which papers are candidates.
+  // Several papers still match (a 1H and a 2H both have Q4). Don't pick one;
+  // tell the caller which papers are candidates.
   const papers = new Map<string, string>();
   for (const c of data as (Chunk & { paper_id: string })[]) {
     papers.set(c.paper_id, c.paper_code ?? c.paper_id);
   }
   if (papers.size > 1) return { rows: [], ambiguous: [...papers.values()].sort() };
 
-  // Numbering is written inconsistently ("4(b)", "4 b", "4b"), so compare on a
-  // stripped form rather than trusting either side's punctuation.
+  // Compare stripped forms: "4(b)", "4 b" and "4b" are the same question.
   const want = filters.questionNo.replace(/[^a-z0-9]/gi, "").toLowerCase();
   const rows = data as Chunk[];
 
@@ -273,13 +244,11 @@ export async function search(
 ): Promise<SearchHits> {
   const filters = opts.filters ?? parseQuery(query);
 
-  // A named paper + question wins outright; nothing similarity finds can beat
-  // the question the student actually asked about.
+  // A named paper + question beats anything similarity finds.
   const lookup = await exactLookup(db, filters, opts.subject);
   const pinned = lookup.rows;
 
-  // An explicit reference must either resolve exactly or be refused. Semantic
-  // neighbours cannot replace a missing question, and require no quota here.
+  // An explicit reference resolves exactly or is refused; neighbours can't stand in.
   const exactReference = filters.questionNo &&
     (filters.paperCode || (filters.years?.length === 1 && filters.session));
   if (exactReference) {
@@ -314,8 +283,8 @@ export async function search(
 
   const alternatives = keywordQuery(query);
   if (alternatives && alternatives !== query) {
-    // Search topic words independently of conversational filler. Prefer their
-    // conjunction, then fill sparse results with ranked alternatives.
+    // Search topic words without the conversational filler: the conjunction
+    // first, then ranked alternatives to fill sparse results.
     const conjunction = alternatives.replaceAll(" OR ", " ");
     const strict = await db.rpc("match_chunks", { ...params, query_embedding: null, query_text: conjunction });
     if (strict.error) throw new Error(`Retrieval failed: ${strict.error.message}`);
@@ -357,8 +326,7 @@ export async function search(
     hits = [...pinned, ...hits.filter((c) => !seen.has(c.id))];
     if (ambiguous) hits.ambiguous = ambiguous;
   } else if (filters.questionNo) {
-    // No paper was named, so only the number is known: promote number matches
-    // rather than trusting similarity to have found them.
+    // Only a number was given, so promote exact number matches.
     const want = strip(filters.questionNo);
     hits.sort((a, b) => rankExact(b, want) - rankExact(a, want));
   }
@@ -406,8 +374,7 @@ export async function getQuestion(db: SupabaseClient, chunkId: string): Promise<
 /* ----------------------------------------------------------- formatting -- */
 
 export function label(c: Chunk): string {
-  // The board prefix ("E-") is how the repo tells boards apart, not something a
-  // student writes or recognises. Students say 4PH1.
+  // Students say 4PH1, not E-4PH1.
   const code = (c.subject_code ?? "").replace(/^[A-Z]-/, "");
   if (c.kind === "syllabus") {
     return `${code} syllabus${c.topic ? `: ${c.topic}` : ""}`;
@@ -415,9 +382,7 @@ export function label(c: Chunk): string {
   const bits = [code];
   if (c.session && c.year) bits.push(`${c.session} ${c.year}`);
 
-  // The paper reference is the last part of the paper code
-  // ("E-4PH1_s24_qp_1P" -> "1P"). It is the whole identity of an Edexcel paper:
-  // 1P and 1PR, 1F and 1H are different papers.
+  // The reference is the last part of the code; 1P/1PR and 1F/1H are different papers.
   const ref = c.paper_code?.split("_").length === 4 ? c.paper_code.split("_")[3].toUpperCase() : null;
   if (ref) bits.push(/^\d{2}$/.test(ref) ? `P${ref}` : `Paper ${ref}`);
   else if (c.paper_no) bits.push(`P${c.paper_no}${c.variant ?? ""}`);
@@ -438,10 +403,7 @@ export function toCitation(c: Chunk): Citation {
   };
 }
 
-/**
- * Render chunks as the numbered source block the prompts cite by index.
- * Highest score first, stopping at the character budget.
- */
+/** Numbered source block the prompts cite by index, highest score first, within budget. */
 export function packContext(chunks: Chunk[], budget = 24000): { text: string; used: Chunk[] } {
   const ordered = [...chunks].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const used: Chunk[] = [];

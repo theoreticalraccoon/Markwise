@@ -1,10 +1,5 @@
-/**
- * Bootstrap: auth gate, catalogue load, router wiring.
- *
- * Three screens exist outside the router: sign-in, password recovery and
- * first-run onboarding. Because none of them should render the app shell.
- * Everything after that is a route.
- */
+// Bootstrap: auth gate, catalogue load, router. Sign-in, password recovery
+// and onboarding render outside the router, without the app shell.
 
 import { byId, on } from "./ui/dom.js";
 import { toast } from "./ui/feedback.js";
@@ -58,13 +53,7 @@ function showAuth() {
   renderAuth();
 }
 
-/**
- * Clear every view's remembered state.
- *
- * Views keep module-level state (the chat, the filters, the chosen subject) and
- * it survives sign-out. Signing in as someone else on the same computer then
- * showed them the last person's conversation.
- */
+// Clear per-view state on sign-out, or the next person sees the last one's chat.
 function resetViews() {
   for (const view of [planner, calendar, recall, assistant, library, markpaper, progress]) {
     view.invalidate?.();
@@ -74,9 +63,7 @@ function resetViews() {
 let booting = null;
 
 async function showApp(user) {
-  // On load, onAuthStateChange and the getSession() check both resolve with
-  // the same session, so this runs twice. Without the guard the second pass
-  // re-boots the router underneath the first one's render.
+  // onAuthStateChange and getSession() both fire on load; only boot once.
   if (booting) return booting;
   booting = doShowApp(user).finally(() => { booting = null; });
   return booting;
@@ -114,9 +101,7 @@ function boot() {
     startRouter();
     routerStarted = true;
   } else {
-    // Re-render where we already are. Navigating to parseHash().name would
-    // drop the segments, landing on #/mock instead of #/mock/<id>, which is
-    // exactly what happened when a student reloaded mid-paper.
+    // Re-render in place so a reload keeps #/mock/<id> rather than #/mock.
     handleRoute();
   }
 }
@@ -148,8 +133,7 @@ function wireShell() {
     if (!byId("appShell") || byId("appShell").hidden) return;
     if (!byId("modalOverlay").hidden) return;
 
-    // Single letters, documented in the sidebar and in the README. Keep the
-    // three lists in step.
+    // Keep in step with the sidebar and README.
     const routes = {
       p: "planner",
       c: "calendar",
@@ -229,17 +213,7 @@ function cleanUrl() {
   }
 }
 
-/**
- * Offline shell.
- *
- * Students revise on trains and in schools with one access point between four
- * hundred of them. The worker caches the shell and the stylesheets so the app
- * opens without a network; everything behind Supabase obviously still needs
- * one, and the views already say so honestly when a request fails.
- *
- * Registration is skipped on file:// where service workers are not allowed,
- * and a failure is never fatal.
- */
+// Cache the shell so the app opens offline. Skipped on file://, never fatal.
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   if (location.protocol !== "http:" && location.protocol !== "https:") return;

@@ -1,35 +1,15 @@
 /**
- * Pearson's "Notional component grade boundaries" documents.
+ * Parse Pearson's "Notional component grade boundaries" PDF. Each row is
  *
- * One PDF per series, covering every International GCSE subject, laid out as
- * a strict table repeated per subject:
- *
- *   Accounting
- *   Notional component grade boundaries Max Mark 9 8 7 6 5 4 3 2 1 U
  *   4AC1 Accounting Raw 100 85 79 73 65 58 51 40 29 18 0
  *   Paper 01
- *   4AC1 Accounting Raw 100 88 81 75 67 59 51 38 25 12 0
- *   Paper 01R
  *
- * A tiered subject's Foundation-tier row stops at grade 5 (its ceiling), so
- * it carries 6 numbers after "Raw" (5,4,3,2,1,U) instead of the usual 10
- * (9,8,7,6,5,4,3,2,1,U):
- *
- *   4MA1 Mathematics A (Foundation) Raw 100 72 60 43 27 11 0
- *   Paper 1F
- *
- * The row and its "Paper <ref>" always come as a pair, in that order, so the
- * grammar needs no lookahead: read a Raw row, then the paper line that follows it.
+ * i.e. max mark, then grades 9..1 and U. Foundation rows stop at grade 5.
  */
 const ROW = /^(\d[A-Z]{1,3}\d)\s+(.+?)\s+Raw\s+((?:\d+(?:\.\d+)?\s*){2,11})$/;
 const PAPER = /^Paper\s+(\S+)$/i;
 
-/**
- * @returns {{code:string, name:string, paperRef:string, maxMark:number, boundaries:Record<string,number>}[]}
- *   `boundaries` maps grade "9".."1" to its minimum raw mark. The trailing "U"
- *   figure (always 0, "ungraded") is dropped: predict_grade already falls
- *   back to 'U' for anything below the lowest stored grade.
- */
+/** @returns {{code, name, paperRef, maxMark, boundaries: Record<grade, minMark>}[]} U is dropped. */
 export function parsePearsonBoundaries(pages) {
   const lines = pages.flatMap((p) => p.text.split("\n").map((l) => l.trim())).filter(Boolean);
   const out = [];
@@ -38,13 +18,13 @@ export function parsePearsonBoundaries(pages) {
     const m = lines[i].match(ROW);
     if (!m) continue;
     const p = lines[i + 1]?.match(PAPER);
-    if (!p) continue; // not the shape we expect; skip rather than guess
+    if (!p) continue; // unexpected shape, skip rather than guess
 
     const nums = m[3].trim().split(/\s+/).map(Number);
     const maxMark = nums[0];
-    const marks = nums.slice(1); // descending grade boundaries, ending in U=0
+    const marks = nums.slice(1); // grade boundaries, highest first, ending in U
     if (marks.length < 2) continue;
-    const topGrade = marks.length - 1; // last entry is U, not a grade
+    const topGrade = marks.length - 1;
 
     const boundaries = {};
     marks.slice(0, -1).forEach((v, gi) => {
@@ -52,23 +32,17 @@ export function parsePearsonBoundaries(pages) {
     });
 
     out.push({ code: m[1].toUpperCase(), name: m[2].trim(), paperRef: p[1].toUpperCase(), maxMark, boundaries });
-    i++; // consumed the paper line too
+    i++; // the paper line was consumed too
   }
   return out;
 }
 
-/** "1F"/"1FR"/"2F" -> Foundation, "1H"/"1HR"/"2H" -> Higher, else null. */
+/** "1F"/"1FR" -> "F", "2H"/"2HR" -> "H", else null. Same letters papers.tier and predict_grade use. */
 export function tierOfBoundaryRef(ref) {
-  if (/F/.test(ref)) return "Foundation";
-  if (/H/.test(ref)) return "Higher";
-  return null;
+  return String(ref ?? "").match(/^\d+([FH])/i)?.[1].toUpperCase() ?? null;
 }
 
-/**
- * A series is named in the source filename, two ways:
- *   "grade-boundaries-june-2024-notional-component-int-gcse.pdf"
- *   "2306-intgcse-9-1-notional-component-grade-boundaries.pdf"  (YY MM: 01 Jan, 06 Jun, 11 Nov)
- */
+/** Series from the filename: "...-june-2024-..." or "2306-..." (YYMM). */
 export function seriesFromBoundaryFilename(name) {
   const wordy = name.match(/(january|jan|june|jun|november|nov)-(\d{4})/i);
   if (wordy) {

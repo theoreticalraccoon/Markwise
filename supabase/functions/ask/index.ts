@@ -1,12 +1,8 @@
 /**
- * POST /functions/v1/ask
- *
- * Grounded chat. Streams the answer back over SSE so the first token appears
- * quickly even though retrieval ran first: on a free tier that perceived
- * latency is most of the felt quality.
+ * POST /functions/v1/ask: grounded chat, streamed over SSE.
  *
  * Body:   { question, subject?, mode?, threadId?, history? }
- * Events: "citations" (once, before any text), "delta" (many), "done", "error"
+ * Events: "citations" (first), "delta", "done", "error"
  */
 
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
@@ -131,16 +127,14 @@ Deno.serve(async (req) => {
         }
         send("done", { chars: full.length, ms: Date.now() - started });
       } catch (e) {
-        // Only refund when nothing reached the student. A half-delivered answer
-        // was still an answer.
+        // Only refund if nothing reached the student.
         if (!full) await release(user, "ask");
         send("error", { message: e instanceof Error ? e.message : "Generation failed." });
       } finally {
         controller.close();
       }
 
-      // Persisted after the socket closes so a slow write never delays the
-      // last token the student sees.
+      // Saved after the socket closes, so a slow write never delays the last token.
       if (body.threadId && full) {
         await persist(db, body.threadId, question, full, citations);
       }

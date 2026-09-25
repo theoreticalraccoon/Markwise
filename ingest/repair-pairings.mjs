@@ -1,8 +1,5 @@
-/**
- * Fill only missing mark-scheme text from deterministic local PDF pairings.
- * Existing pairings, question text, classifications and embeddings are never
- * touched. Run with --dry to inspect the count without writing.
- */
+// Fill only missing mark-scheme text from exact local pairings. Never touches
+// existing pairings, questions, topics or embeddings. --dry to preview.
 import { readdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import pLimit from "p-limit";

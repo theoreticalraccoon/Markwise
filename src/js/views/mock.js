@@ -1,14 +1,10 @@
 /**
- * Mock exams: generate, sit under timer, submit, get marked.
+ * Mock exams: generate, sit under a timer, get marked. Answers are kept in
+ * localStorage while you write, so a closed tab doesn't lose the paper.
  *
- * Three states in one route:
- *   #/mock            the list, and the generator
- *   #/mock/<id>       sitting the paper
- *   #/mock/<id>/marked   the marked result
- *
- * Answers are held in localStorage while the paper is being written, so a
- * closed tab or a dead battery does not destroy an hour of work before it has
- * been submitted.
+ *   #/mock               list and generator
+ *   #/mock/<id>          sitting it
+ *   #/mock/<id>/marked   the result
  */
 
 import { esc, escLines, on } from "../ui/dom.js";
@@ -39,9 +35,7 @@ export async function render(container, { segments = [] } = {}) {
   else if (segments[1] === "marked") await renderMarked(segments[0]);
   else await renderSit(segments[0]);
 
-  // Leaving the paper must stop its clock. The timer used to keep ticking on a
-  // detached element until the time ran out, because only starting the NEXT
-  // mock ever cleared it.
+  // Leaving the paper stops its clock.
   return () => { stopTimer(); removeConnectivityListeners?.(); };
 }
 
@@ -63,8 +57,7 @@ async function renderList() {
 
   try {
     const mocks = await loadMocks();
-    // A slow load can finish after the student has already moved to another
-    // screen, by which point the element it was going to fill is gone.
+    // The student may have moved on before this load finished.
     const list = root.querySelector("#mockList");
     if (!list) return;
     list.innerHTML = mocks.length
@@ -139,9 +132,7 @@ function paintGenerator() {
     return;
   }
 
-  // Subject is the only decision. Everything else: how many marks, how long,
-  // which topics: has a sensible answer the student should not have to make
-  // up before they can practise.
+  // Subject is the only choice. Marks, time and topics have sensible defaults.
   slot.innerHTML = `
     <section class="card plain generator">
       <div class="gen-row">
@@ -169,8 +160,7 @@ function paintGenerator() {
 
   const subjectSel = slot.querySelector("#genSubject");
 
-  // Only subjects with Foundation and Higher papers (Mathematics A) have a tier
-  // to choose. Everything else sits one paper and shows no picker.
+  // Only tiered subjects (Maths A) get a Foundation/Higher picker.
   const tierWrap = slot.querySelector("#genTierWrap");
   const showTier = async () => {
     try {
@@ -264,8 +254,7 @@ async function renderSit(id) {
       <p class="muted">Your answers are saved on this device as you type.</p>
     </div>`;
 
-  // Persist on every keystroke (debounced by the browser's own event pacing
-  // localStorage writes at this size are cheap and losing work is not).
+  // Save on every keystroke. Cheap, and losing work isn't.
   on(root, "input", ".exam-answer", (_, box) => {
     const current = readDraft(id);
     current[box.dataset.q] = box.value;
@@ -307,8 +296,7 @@ function startTimer(mock) {
   const announce = root.querySelector("#timerAnnounce");
   const said = new Set();
   const say = (key, text) => {
-    // A countdown announced every second is unusable with a screen reader, so
-    // it is announced once at each threshold instead.
+    // Screen readers get the countdown at thresholds, not every second.
     if (said.has(key) || !announce) return;
     said.add(key);
     announce.textContent = text;
@@ -320,8 +308,7 @@ function startTimer(mock) {
       el.textContent = "Time up";
       el.classList.add("over");
       stopTimer();
-      // The paper is over. Lock the answers so nothing more can be written, and
-      // say so: submitting is still the student's choice.
+      // Time's up: lock the answers. Submitting is still up to the student.
       root.querySelectorAll(".exam-answer").forEach((box) => { box.readOnly = true; });
       say("up", "Time is up. Submit your paper to have it marked.");
       toast("Time is up. Submit your paper to have it marked.");
@@ -366,9 +353,7 @@ async function submitExam(mock) {
 
   stopTimer();
 
-  // The whole paper goes in one request. It is one AI allowance rather than
-  // one per question, and the server batches it, so a student cannot run out
-  // of quota halfway down their own paper.
+  // One request for the whole paper, so quota can't run out halfway through it.
   root.innerHTML = `
     <header class="view-head"><div><h1>Marking your paper</h1>
       <p class="view-sub">Every answer is marked against its own mark scheme. This takes a minute.</p></div></header>
@@ -423,8 +408,7 @@ async function renderMarked(id) {
   const pct = mock.total_marks ? Math.round(((mock.awarded ?? 0) / mock.total_marks) * 100) : 0;
   const band = pct >= 80 ? "good" : pct >= 50 ? "mid" : "poor";
 
-  // Where the marks actually went, by topic. The most useful single view of
-  // a finished paper.
+  // Where the marks went, by topic.
   const byTopic = new Map();
   for (const q of questions) {
     const topic = q.result?.topic ?? q.topic ?? "Unclassified";

@@ -1,15 +1,6 @@
-/**
- * Settings: subjects, exam series, tuition timetable, papers, appearance,
- * allowance, account.
- *
- * The allowance is shown rather than hidden until it runs out: Markwise runs on
- * a free Gemini tier shared by everyone on the deployment, and a student who
- * can see the budget spends it better than one who hits a wall.
- *
- * The tuition timetable and the corpus uploader live here rather than in the
- * sidebar because neither is something a student does daily. They are setup,
- * and setup belongs in settings.
- */
+// Settings: subjects, exam series, tuition timetable, papers, appearance,
+// AI allowance and account. The allowance is visible up front so students can
+// pace a shared free-tier budget.
 
 import { esc, on, debounce } from "../ui/dom.js";
 import { toast, confirmModal, openModal, closeModal, spinner } from "../ui/feedback.js";

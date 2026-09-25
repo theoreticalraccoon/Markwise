@@ -1,19 +1,9 @@
 /**
- * POST /functions/v1/mock
+ * POST /functions/v1/mock: build a mock from real past questions. The model
+ * only orders ids and writes a title and rubric; every question is copied
+ * verbatim from the database. Selection can lean on the student's weak topics.
  *
- * Builds a mock paper out of real past questions.
- *
- * The important design choice: the model never emits question text. It is
- * given a candidate pool (id, marks, topic, first line) and returns an ordered
- * list of ids plus a title and rubric. The server then reconstitutes each
- * question verbatim from the database. A model that can rewrite a question can
- * rewrite it wrong, and a mock paper made of subtly-wrong questions is worse
- * than no mock paper at all.
- *
- * Selection is SQL-side and can be biased to the student's weak topics, which
- * is what turns "generate a mock" into "generate the mock I actually need".
- *
- * Body: { subject, marks?, topics?, weakFirst?, durationMin?, paperNo? }
+ * Body: { subject, marks?, topics?, weakFirst?, durationMin?, tier?, paperRef? }
  */
 
 import { preflight, fail, json } from "../_shared/http.ts";
@@ -98,9 +88,7 @@ Deno.serve(async (req) => {
     topics = [...new Set([...topics, ...weak])];
   }
 
-  // ---- pull a candidate pool ---------------------------------------------
-  // Over-sample: some candidates will be dropped to hit the mark target. A
-  // hundred-mark paper needs a bigger pool than a ten-mark quiz.
+  // Over-sample, since some candidates get dropped to hit the mark target.
   const tier = body.tier === "H" || body.tier === "F" ? body.tier : null;
   const paperRef = body.paperRef?.trim() || null;
   const limit = Math.min(120, Math.max(40, targetMarks * 2));
@@ -114,8 +102,7 @@ Deno.serve(async (req) => {
       p_max_marks: 20,
       p_tier: tier,
       p_paper_ref: paperRef,
-      // Questions that lean on a figure are unanswerable as plain text, so they
-      // are left out unless the subject has too little else to build a paper.
+      // Figure-dependent questions only when there's too little else.
       p_no_figure: textOnly,
     });
     if (error) throw new Error(`Could not sample questions: ${error.message}`);
@@ -125,8 +112,7 @@ Deno.serve(async (req) => {
   let pool: Chunk[];
   try {
     pool = await sample(topics.length ? topics : null, true);
-    // Asking for weak topics only works once there is a corpus for them; widen
-    // rather than returning an empty paper.
+    // Widen if the weak topics have too few questions.
     if (pool.length < 4 && topics.length) pool = await sample(null, true);
     if (pool.length < 4) pool = await sample(null, false);
   } catch (e) {
@@ -168,9 +154,7 @@ Deno.serve(async (req) => {
       { system: MOCK_SYSTEM, temperature: 0.3, maxOutputTokens: 1200 },
     );
   } catch {
-    // Sequencing is a nicety. If the model is unavailable, fall back to the
-    // conventional ordering (short recall first) rather than failing the whole
-    // request. The questions are the product, not the rubric.
+    // Ordering is a nicety; if the model is down, use short-recall-first.
     plan = {
       title: body.title ?? `${subject} mock: ${totalMarks} marks`,
       instructions: defaultRubric(totalMarks, body.durationMin ?? suggestDuration(totalMarks)),
@@ -178,8 +162,7 @@ Deno.serve(async (req) => {
     };
   }
 
-  // Reconstitute verbatim, honouring the model's order but ignoring anything
-  // it invented or dropped.
+  // Rebuild verbatim in the model's order, ignoring anything it invented or dropped.
   const byId = new Map(selected.map((c) => [c.id, c]));
   const ordered: Chunk[] = [];
   for (const id of plan.order ?? []) {
@@ -196,7 +179,6 @@ Deno.serve(async (req) => {
     marks: c.marks ?? 0,
     paperRef: label(c),
     paperCode: c.paper_code,
-    // The last part of the paper code is the paper's reference ("E-4PH1_s24_qp_1P" -> "1P").
     paperReference: paperRefOf(c.paper_code),
     paperNo: c.paper_no,
     questionNo: c.question_no,
@@ -207,9 +189,7 @@ Deno.serve(async (req) => {
   const durationMin = body.durationMin ?? suggestDuration(totalMarks);
   const instructions = plan.instructions || defaultRubric(totalMarks, durationMin);
 
-  // Which paper number to predict a grade against. A mock draws from several
-  // papers, so the modal paper number is the honest answer: the boundaries of
-  // the paper most of these marks actually came from.
+  // Grade against the paper most of these marks came from.
   const paperNo = modalPaperNo(ordered);
 
   // ---- save ---------------------------------------------------------------
@@ -243,14 +223,7 @@ Deno.serve(async (req) => {
   });
 });
 
-/**
- * The paper number most of this mock's marks came from.
- *
- * Grade boundaries are published per paper, so predicting a grade needs one.
- * Taking question 1's paper number, as the client used to, meant a 40-mark
- * paper built mostly from Paper 4 questions could be graded against Paper 2's
- * boundaries because the first short question happened to come from there.
- */
+/** The paper number most of the mock's marks came from (question 1's could be misleading). */
 function modalPaperNo(chunks: Chunk[]): number | null {
   const weight = new Map<number, number>();
   for (const c of chunks) {
@@ -274,14 +247,7 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, Math.round(n)));
 }
 
-/**
- * A part that cannot stand on its own.
- *
- * "Hence, solve x² + 9x − 22 = 0" is unanswerable without the part above it,
- * and a mock paper that asks it in isolation is not a mock paper. These are
- * dropped rather than reworded: rewording a question is exactly what this
- * route refuses to do.
- */
+/** "Hence, solve ..." can't stand alone, so such parts are dropped, never reworded. */
 function dependsOnSibling(c: Chunk): boolean {
   const opening = c.content.replace(/\s+/g, " ").trim().slice(0, 60).toLowerCase();
   return /^(hence|use (your|this) answer|using (your|this|part)|from your answer|write down another|repeat (this|the)|use the (graph|diagram|figure|table|result)|from (part|question)|in part)/
@@ -289,13 +255,8 @@ function dependsOnSibling(c: Chunk): boolean {
 }
 
 /**
- * Fit the mark target with a realistic spread of question sizes.
- *
- * Filling greedily from the shortest questions technically hits the target but
- * produces a paper of fifteen one-mark fragments, which tests recall and
- * nothing else. Real papers spend roughly 40% of their marks on short recall,
- * 35% on middling method questions and 25% on extended ones, so marks are
- * drawn from three buckets against that budget.
+ * Hit the mark target with a realistic spread: about 40% short recall, 35%
+ * method, 25% extended. Greedy filling gives fifteen one-mark fragments.
  */
 function fitToMarks(pool: Chunk[], target: number): Chunk[] {
   const usable = pool.filter((c) => (c.marks ?? 0) > 0 && !dependsOnSibling(c));
@@ -315,8 +276,7 @@ function fitToMarks(pool: Chunk[], target: number): Chunk[] {
   const spent = buckets.map(() => 0);
   let total = 0;
 
-  // Repeatedly draw from whichever bucket is furthest below its share of the
-  // target, so the paper stays balanced even when one size is scarce.
+  // Draw from whichever bucket is furthest below its share.
   for (let guard = 0; guard < 200 && total < target - 1; guard++) {
     const order = buckets
       .map((b, i) => ({ i, b, deficit: b.share * target - spent[i] }))

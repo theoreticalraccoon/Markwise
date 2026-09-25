@@ -1,12 +1,8 @@
 /**
- * Security smoke test: proves row-level security actually holds.
+ * RLS smoke test: two users write data, then each tries every way to reach the
+ * other's rows. A policy that fails open looks fine until someone checks.
  *
  *   npm run test:security
- *
- * Creates two users, has each write data, and then tries every way one could
- * reach the other's rows. RLS is the only thing standing between students on a
- * shared deployment, and a policy that silently fails open looks exactly like
- * a policy that works until someone checks.
  */
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";

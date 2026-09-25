@@ -1,26 +1,10 @@
 /**
- * POST /functions/v1/mark-mock
+ * POST /functions/v1/mark-mock: mark a whole mock in one request. One quota
+ * claim for the paper (per-question calls used to burn 12 of a 40-a-day cap),
+ * questions marked in batches of five so the JSON isn't truncated, each against
+ * its own stored scheme. No scheme means unmarkable, never guessed.
  *
- * Marks a whole mock paper in one budgeted request.
- *
- * The client used to loop over the questions and call /mark once each. That
- * was wrong twice over:
- *
- *   - Budget. Each call claimed one "mark" allowance, so sitting a twelve
- *     question paper spent twelve of a forty-a-day cap, and a student who ran
- *     out halfway had the rest of their paper silently scored zero.
- *   - Latency. Twelve sequential Gemini round trips on a free tier is minutes
- *     of staring at a spinner.
- *
- * One claim covers the paper. Questions are marked in batches of five, the
- * same size mark-paper uses, because a whole paper in one response runs out of
- * output tokens halfway down and returns truncated JSON.
- *
- * Every question is still marked against its own stored mark scheme, which was
- * captured verbatim into the mock when it was generated. A question with no
- * scheme is reported unmarkable rather than guessed at.
- *
- * Body: { mockId, answers: { "<question n>": "<what they wrote>" } }
+ * Body: { mockId, answers: { "<question n>": "<answer>" } }
  */
 
 import { preflight, fail, json } from "../_shared/http.ts";
@@ -170,6 +154,8 @@ Deno.serve(async (req) => {
     await release(user, "markmock");
     return fail(req, "Marking is unavailable right now. Your answers are saved: try again shortly.", 502);
   }
+  // Nothing had a mark scheme, so no model ran: return the result, don't charge for it.
+  if (batchesRun === 0) await release(user, "markmock");
 
   // ---- assemble ------------------------------------------------------------
   let awarded = 0;
@@ -225,12 +211,7 @@ Deno.serve(async (req) => {
       topic: q.topic ?? null,
       model_answer: q.result.modelAnswer || null,
     }));
-  // ---- predicted grade -----------------------------------------------------
-  //
-  // A mock is drawn from questions across many papers, and boundaries belong to
-  // one paper. A percentage of a collage graded against one paper's boundaries
-  // means nothing, so a grade is only given when EVERY question came from the
-  // same paper, and it is given as an estimate.
+  // Grade only when every question came from one paper; boundaries are per paper.
   let grade: string | null = null;
   const codes = new Set(questions.map((q) => q.paperCode).filter(Boolean));
   const ref = questions.find((q) => q.paperReference)?.paperReference ?? null;
@@ -248,9 +229,8 @@ Deno.serve(async (req) => {
     } catch { /* boundaries are optional */ }
   }
 
-  // Save the result FIRST, and only if nobody else has marked this mock in the
-  // meantime. Two simultaneous submits used to both mark it and both write the
-  // attempts, so every topic's mastery counted the paper twice.
+  // Save first, and only if nobody else marked it meanwhile, or a double
+  // submit counts the paper twice in mastery.
   const { data: saved, error: updateError } = await user.db.from("mocks").update({
     status: "marked",
     submitted_at: new Date().toISOString(),

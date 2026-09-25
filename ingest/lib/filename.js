@@ -1,33 +1,13 @@
 /**
- * Working out what a PDF is from its filename.
+ * What a PDF is, from its filename. Two families are understood:
  *
- * Two families of names are understood.
+ *   E-4PH1_s24_qp_1P.pdf       Markwise: Physics, June 2024, question paper, 1P
+ *   E-4MA1_j24_ms_2H.pdf       Maths A, January 2024, mark scheme, 2H
+ *   E-4PH1_y17_sy.pdf          Physics specification
+ *   4PH1_1P_que_20240514.pdf   Pearson's own name (que / rms / msc / pef)
  *
- * Markwise convention, used for everything the repo names itself:
- *
- *   E-4PH1_s24_qp_1P.pdf   Edexcel Physics, May/June 2024, question paper, paper 1P
- *   E-4MA1_j24_ms_2H.pdf   Edexcel Maths A, January 2024, mark scheme, paper 2H
- *   E-4PH1_y17_sy.pdf      Edexcel Physics specification
- *   0625_s19_qp_42.pdf     Cambridge Physics, May/June 2019, paper 4 variant 2
- *
- * Pearson's own download names, which need no renaming:
- *
- *   4PH1_1P_que_20240514.pdf   question paper (que)
- *   4PH1_1P_rms_20240815.pdf   mark scheme (rms / msc)
- *   4PH1_1P_pef_20240815.pdf   examiner report (pef)
- *
- * The series is read from the date in a Pearson name: an exam in January is the
- * January series, May or June is the summer series, October or November is the
- * autumn one.
- *
- * Session letters: j = January, s = May/June, w = Oct/Nov, m = Feb/March (a
- * Cambridge series that Edexcel does not sit).
- *
- * WHAT A PAPER IS. An Edexcel paper is identified by its paper reference: "1H"
- * and "1F" are different papers set on the same day for different tiers, and
- * "1P" and "1PR" are a paper and its reserve. Collapsing them to "paper 1", as
- * this parser used to, made them collide and overwrite one another. So the
- * reference is kept whole, and `tier` is read from it.
+ * Session letters: j Jan, s Jun, w Nov, m Mar (Cambridge only). The paper
+ * reference is kept whole: 1H and 1F are different papers, as are 1P and 1PR.
  */
 
 const SESSION = { j: "Jan", m: "Mar", s: "Jun", w: "Nov" };
@@ -44,12 +24,8 @@ export function seriesFromMonth(month) {
 }
 
 /**
- * Which series a mark scheme or examiner report belongs to, from the date on
- * its filename.
- *
- * Those two carry the date they were PUBLISHED, not the date of the exam: the
- * scheme for a May paper is dated August. Reading it as an exam date filed
- * every scheme under the wrong series, so it never paired with its paper.
+ * Series of a mark scheme or examiner report. Their date is when they were
+ * published (August for a May paper), not when the exam was sat.
  * January and February publications belong to the previous November.
  */
 export function seriesFromPublication(month, year) {
@@ -59,19 +35,14 @@ export function seriesFromPublication(month, year) {
   return { session: "Nov", year };
 }
 
-/**
- * @returns {{subjectCode,kind,year,session,paperNo,variant,paperRef,tier,code}|null}
- */
+/** @returns {{subjectCode,kind,year,session,paperNo,variant,paperRef,tier,code}|null} */
 export function parseFilename(name) {
   const base = name.replace(/\.pdf$/i, "").trim().toLowerCase();
 
   const native = parsePearson(base);
   if (native) return native;
 
-  // 0625_s19_qp_42  |  E-4PH1_s24_qp_1P  |  0625_y20_sy  |  E-4MA1_j24_ms_2H
-  //
-  // The subject token is a Cambridge 4-digit code, or a board-prefixed code
-  // for anything else: E-4MA1 (Edexcel), X-PSY (a school course).
+  // 0625_s19_qp_42 | E-4PH1_s24_qp_1P | 0625_y20_sy | E-4MA1_j24_ms_2H
   const m = base.match(
     /^(\d{4}|[a-z]{1,3}-[a-z0-9]{2,12})[_-]([jmswy])(\d{2})[_-]([a-z]{2})(?:[_-]([0-9][0-9a-z]{0,2}))?$/,
   );
@@ -92,11 +63,7 @@ export function parseFilename(name) {
   };
 }
 
-/**
- * Pearson's own names: 4PH1_1P_que_20240514.
- *
- * The date is the day of the exam, so it gives both the year and the series.
- */
+/** Pearson's own names, e.g. 4PH1_1P_que_20240514. The date is the exam day. */
 function parsePearson(base) {
   const m = base.match(/^(4[a-z]{2}\d)[_-]((?:\d{1,2}[a-z]{0,2}))[_-]([a-z]{2,3})[_-](\d{4})(\d{2})(\d{2})$/);
   if (!m) return null;
@@ -122,14 +89,8 @@ function parsePearson(base) {
 }
 
 /**
- * The parts of a paper reference.
- *
- *   Edexcel   "1H" → paper 1, tier H     "1PR" → paper 1, reserve     "01" → paper 1
- *   Cambridge "42" → paper 4, variant 2
- *
- * Older files in this repo were named "E-4MA1_s24_qp_13", where the "3" stood
- * for Higher tier. That is kept readable rather than orphaned: 3 becomes H and
- * 1 becomes F, and anything else is left as it was written.
+ * Split a paper reference: "1H" is paper 1 tier H, "1PR" a reserve, "01"
+ * paper 1, Cambridge "42" paper 4 variant 2. Old "_13" names map 3 to H, 1 to F.
  */
 export function paperIdentity(subjectCode, ref) {
   if (!ref) return { paperNo: null, variant: null, paperRef: "", tier: null };
@@ -162,14 +123,8 @@ export function paperIdentity(subjectCode, ref) {
   };
 }
 
-/**
- * Tolerate the hand-renamed files people actually have on disk.
- *
- * Word boundaries are useless here. Underscores are word characters, so
- * `\b(\d{4})\b` never matches the code in `0625_june_2019_ms.pdf` and happily
- * matches the *year* in `physics 2019 june.pdf`. Digit-run boundaries are used
- * instead, and any 4-digit run that looks like a year is rejected as a code.
- */
+// Hand-renamed files. \b is useless around underscores, so use digit-run
+// boundaries, and never take a year for a subject code.
 function looseParse(base) {
   const prefixed = base.match(/(?:^|[^a-z0-9])([a-z]{1,3}-[a-z0-9]{2,12})(?=[^a-z0-9]|$)/)?.[1];
   const edexcelCode = base.match(/(?:^|[^a-z0-9])(4[a-z]{2}\d)(?=[^a-z0-9]|$)/)?.[1];
@@ -181,9 +136,7 @@ function looseParse(base) {
   const shortYear = base.match(/(?:^|[^a-z0-9])[jmsw](\d{2})(?:[^0-9]|$)/)?.[1];
   const year = Number(explicitYear ?? (shortYear ? `20${shortYear}` : 0)) || null;
 
-  // Same trap as above: `\b` does not fire around underscores, so "_ms_" would
-  // never be recognised and every mark scheme would be filed as a question
-  // paper. Separator classes are used throughout instead.
+  // Same underscore trap, so separator classes instead of \b.
   const has = (alt) => new RegExp(`(?:^|[^a-z0-9])(?:${alt})(?:[^a-z0-9]|$)`).test(base);
 
   let session = null;
@@ -243,16 +196,4 @@ export function titleFor(meta, subjectName) {
     ] ?? meta.kind,
   );
   return bits.join(" · ");
-}
-
-/** The qp filename that a ms filename should pair with, and vice versa. */
-export function siblingCode(meta, kind) {
-  const ref = meta.paperRef ?? (meta.paperNo ? `${meta.paperNo}${meta.variant ?? ""}` : "");
-  return `${meta.subjectCode}_${sessionLetter(meta.session)}${String(meta.year).slice(2)}_${kind}${
-    ref ? `_${ref}` : ""
-  }`;
-}
-
-function sessionLetter(session) {
-  return { Jan: "j", Mar: "m", Jun: "s", Nov: "w" }[session] ?? "y";
 }

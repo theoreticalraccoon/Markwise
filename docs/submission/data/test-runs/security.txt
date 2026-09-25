@@ -1,0 +1,31 @@
+
+> markwise@1.0.0 test:security
+> node --env-file-if-exists=ingest/.env ingest/smoke-security.mjs
+
+
+row-level security
+  ok    bob cannot read alice's tasks
+  ok    bob cannot read alice's marked answers
+  ok    bob cannot read alice's task by its exact id
+  ok    bob cannot read other profiles
+  ok    bob cannot update alice's task
+  ok    bob cannot delete alice's task
+  ok    bob cannot insert a row owned by alice
+
+corpus access
+  ok    any signed-in user can read the corpus
+  ok    a signed-in user cannot write to the corpus
+  ok    a signed-in user cannot add subjects
+
+quota integrity
+  ok    a signed-in user cannot call claim_ai_call directly
+  ok    a signed-in user cannot forge usage rows
+  ok    bob cannot read alice's usage
+
+anonymous access
+  ok    a signed-out visitor reads no tasks
+  ok    a signed-out visitor reads no corpus
+
+throwaway users deleted.
+
+Security: row-level security holds on every path tested.

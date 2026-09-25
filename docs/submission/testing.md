@@ -5,7 +5,7 @@ All runs below are from 25 September 2026. Raw output is in [data/test-runs](dat
 | Suite | Command | What it checks | Result |
 |---|---|---|---|
 | Logic | `npm test` | Parsing, pairing, retrieval queries, grade boundaries, dates, escaping. No network | **239 assertions and 31 Node tests pass** |
-| Parse check | `npm run check` | Every browser module and edge function parses; no stray control characters | 26 of 26 modules, 13 of 13 functions, 149 of 149 files clean |
+| Parse check | `npm run check` | Every browser module and edge function parses; no stray control characters | 26 of 26 modules, 13 of 13 functions, 152 of 152 files clean |
 | Security | `npm run test:security` | Row-level security against the live database with two throwaway students | **15 of 15 pass** |
 | Browser | `npm run test:browser` | Every screen of the live app in headless Chromium, as a throwaway student | **23 of 23 pass** |
 | Assistant | `npm run test:assistant` | Seven questions that used to go wrong, asked of the live assistant | 6 of 7 pass (below) |
@@ -71,7 +71,10 @@ anonymous access
 
 ## Browser test cases
 
-Run against the production site, https://markwise-tau.vercel.app:
+Run against the production site. The app has since moved to https://markwise-sl.vercel.app/;
+the raw log in [data/test-runs](data/test-runs/browser-production.txt) still shows the address
+it had on the day, `markwise-tau.vercel.app`. To rerun against the current address:
+`MARKWISE_TEST_ORIGIN=https://markwise-sl.vercel.app npm run test:browser`.
 
 ```
 ok  sign in                              ok  library: browse the corpus

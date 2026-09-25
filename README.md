@@ -2,7 +2,7 @@
 
 **A study app for Pearson Edexcel International GCSE that has actually read the papers.**
 
-Live at [markwise-tau.vercel.app](https://markwise-tau.vercel.app).
+Live at [markwise-sl.vercel.app](https://markwise-sl.vercel.app/).
 
 Markwise does two jobs. It keeps track of homework, assessments, tuition and revision. And it
 answers questions, marks answers and builds mock exams from **11,522 real past-paper questions,

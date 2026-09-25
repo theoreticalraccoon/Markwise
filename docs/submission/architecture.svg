@@ -32,7 +32,7 @@
   <text x="78" y="294" class="t">Service worker: opens offline</text>
   <text x="78" y="316" class="t">Holds only the public Supabase key</text>
   <text x="78" y="490" class="s">Hosted as static files on Vercel</text>
-  <text x="78" y="508" class="s">markwise-tau.vercel.app</text>
+  <text x="78" y="508" class="s">markwise-sl.vercel.app</text>
 
   <!-- Supabase -->
   <rect x="420" y="100" width="420" height="440" class="zone"/>

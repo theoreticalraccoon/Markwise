@@ -17,6 +17,9 @@ Thumbs.db
 # Local agent notes
 AGENTS.md
 .gstack/
+docs/PLAN.md
+docs/STATUS.md
+docs/COMPLETION.md
 
 # Ingestion
 ingest/node_modules/
@@ -30,3 +33,13 @@ dist/
 
 # Local copy of Pearson's public catalogue, used by the loader
 ingest/.pearson-catalogue.json
+
+# One-off local corpus helpers (the kept ones live in ingest/tools/)
+ingest/audit-*.mjs
+ingest/discover-pearson.mjs
+ingest/recon-pearson.mjs
+ingest/force-reingest.sh
+ingest/run-subjects.sh
+
+# Submission bundle, built from the repository
+code.zip

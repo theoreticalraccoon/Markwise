@@ -34,8 +34,9 @@ What's known to be unfinished or imperfect, as of 25 September 2026. Numbers com
 - **Citations.** In one of seven live assistant checks, a correct, grounded answer left out
   its inline citations.
 - **Admin upload.** The refusal path is tested; a successful live upload by an admin isn't.
-- **Hosting.** Set the Supabase Auth Site URL and redirect for the production URL, and link
-  the GitHub repository so Vercel deploys automatically.
+- **Hosting.** The app is live at https://markwise-sl.vercel.app/. Make sure the Supabase Auth
+  Site URL and redirect list use that address, so password-reset links land on it, and link the
+  GitHub repository so Vercel deploys automatically.
 
 ## Architecture
 

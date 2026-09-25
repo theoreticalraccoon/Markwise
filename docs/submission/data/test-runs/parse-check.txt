@@ -1,5 +1,5 @@
 browser modules: 26 of 26 parse
 edge functions: 13 of 13 parse
-control characters: 149 of 149 files clean
+control characters: 152 of 152 files clean
 
 everything parses

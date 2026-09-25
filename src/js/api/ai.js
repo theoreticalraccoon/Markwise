@@ -2,13 +2,7 @@
 
 import { callFunction, streamFunction } from "./client.js";
 
-/**
- * Streamed, grounded answer.
- *
- * `onCitations` fires before any text, so the sources panel can render while
- * the model is still thinking. Which is also the honest moment to tell the
- * student that nothing was retrieved.
- */
+/** Streamed answer. `onCitations` fires before any text, so sources render first. */
 export function ask({ question, subject, mode = "ask", threadId, history = [] }, handlers, options) {
   return streamFunction(
     "ask",
@@ -31,13 +25,7 @@ export function generateMock(body, options) {
   return callFunction("mock", body, options);
 }
 
-/**
- * Mark a whole sat mock in one request.
- *
- * One quota claim for the paper rather than one per question, and the server
- * batches the questions so a long paper does not become a dozen sequential
- * round trips.
- */
+/** Mark a whole mock in one request: one quota claim, batched on the server. */
 export function markMock(body, options) {
   return callFunction("mark-mock", body, options);
 }

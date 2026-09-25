@@ -1,11 +1,5 @@
-/**
- * Gemini client for the ingestion pipeline.
- *
- * Differs from the edge-function client in two ways that matter at ingestion
- * scale: keys are rotated across a pool, and quota exhaustion tries each
- * configured key once before failing. Keys may share a project quota; waiting
- * on every exhausted batch must not turn a resumable run into an hours-long hang.
- */
+// Gemini client for ingestion. Rotates keys; when quota runs out it tries
+// each key once and then fails, rather than hanging a resumable run.
 
 import { GEMINI_KEYS, CHAT_MODELS, EMBED_MODEL, EMBED_DIMS } from "./config.js";
 
@@ -82,16 +76,9 @@ export async function embedBatch(texts, taskType = "RETRIEVAL_DOCUMENT") {
 }
 
 /**
- * Embed many texts in batches, one failed batch never failing the run: a
- * batch that errors (rate limit, transient 5xx) lands its chunks as `null`
- * rather than losing everything embedded so far.
- *
- * `noEmbed` skips straight to that same all-null result without calling
- * Gemini at all. A quota that is out for the day fails every batch through
- * the same several minutes of retry inside `call()` first; ingesting a whole
- * subject that way spends hours proving what one failed call already showed.
- * The caller decides when that's worth it (`ingest.js papers --no-embed`)
- * and leaves the chunks for a later `reembed` pass instead.
+ * Embed in batches. A failed batch lands its chunks as null instead of failing
+ * the run. `noEmbed` returns all-null without calling Gemini (for when the
+ * quota is known to be out; reembed picks them up later).
  */
 export async function embedAll(texts, { noEmbed = false, batchSize = 96, onWarn = () => {} } = {}) {
   if (noEmbed) return texts.map(() => null);
@@ -109,15 +96,8 @@ export async function embedAll(texts, { noEmbed = false, batchSize = 96, onWarn 
   return out;
 }
 
-/**
- * Scale a vector to unit length.
- *
- * Only the model's native 3072 dimensions come back normalised; a truncated
- * 768-dim vector does not (measured L2 norm ≈ 0.57). Cosine distance would
- * still rank correctly, but storing un-normalised vectors makes the distances
- * themselves meaningless and would silently break anything that reads them as
- * a similarity score.
- */
+// Truncated 768-dim vectors come back with a norm around 0.57. Normalise so
+// stored distances mean something.
 export function normalise(values) {
   if (!Array.isArray(values)) return values;
   let sum = 0;
@@ -160,9 +140,7 @@ export async function generateJSON(prompt, schema, { system, temperature = 0, ma
     const candidate = data?.candidates?.[0];
     const text = (candidate?.content?.parts ?? []).map((p) => p.text ?? "").join("");
 
-    // Reasoning models spend the output budget on thinking before they write.
-    // Truncated JSON is the symptom; say so plainly rather than reporting a
-    // parse error that looks like the model returned nonsense.
+    // Thinking models can burn the budget before writing; name that plainly.
     if (candidate?.finishReason === "MAX_TOKENS") {
       lastError = new Error(`${model} hit the output limit before finishing the JSON: raise maxOutputTokens or send a smaller batch.`);
       continue;
@@ -188,11 +166,7 @@ export async function generateJSON(prompt, schema, { system, temperature = 0, ma
   throw lastError ?? new Error("No Gemini model produced a usable response.");
 }
 
-/**
- * OCR a page image. Cambridge papers from before ~2015 are scans, and diagram
- * pages never have a usable text layer, so this is the fallback whenever text
- * extraction comes back thin.
- */
+/** OCR a page image, for scans and pages with no usable text layer. */
 export async function ocrPage(pngBuffer, hint = "") {
   const body = {
     contents: [{

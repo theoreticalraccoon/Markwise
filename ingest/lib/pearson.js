@@ -1,18 +1,8 @@
 /**
- * Pearson's official past-papers catalogue.
- *
- * Pearson publishes past papers for students free of charge on its own website,
- * and the page that lists them is driven by a search index whose public,
- * search-only credentials it ships to every visitor. This module opens that
- * page in a browser, as a student would, and asks the page's own search client
- * the same questions it asks when someone presses Search. It never touches
- * anything but qualifications.pearson.com, and it says what it is.
- *
- * What it will NOT do:
- *   - fetch from any other site (the whole point of this loader is that every
- *     file comes from the copyright holder's own public pages);
- *   - fetch anything the catalogue marks as needing a teacher login;
- *   - go faster than one request every couple of seconds.
+ * Pearson's past-papers catalogue. Opens the public page in a browser and asks
+ * its own search client, the same way the Search button does. Only
+ * qualifications.pearson.com, nothing behind a teacher login, and no faster
+ * than one request every couple of seconds.
  */
 
 import { chromium } from "playwright";
@@ -40,10 +30,7 @@ export async function openCatalogue() {
     throw new Error("The past-papers page no longer carries its search configuration. Its layout has changed.");
   }
 
-  /**
-   * Every document matching `filters`, paged. A pause between pages keeps this
-   * to a few requests, not a burst.
-   */
+  /** Every document matching `filters`, a page at a time with a pause between. */
   async function search(filters, query = "") {
     const all = [];
     for (let pageNo = 0; ; pageNo++) {

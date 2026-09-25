@@ -1,14 +1,9 @@
 /**
- * RAG proof: shows each stage of retrieval-augmented generation on real data.
+ * RAG proof: prints every stage for one question on real data (embedding,
+ * hybrid search, the text handed to the model, the grounded answer), then
+ * reruns it with retrieval off. If the answer doesn't change, it wasn't RAG.
  *
  *   npm run rag:proof
- *
- * Prints what is actually happening for one question: the embedding, the
- * hybrid search, the chunks that came back, the verbatim text handed to the
- * model, and the grounded answer. Then runs the ablation that matters: the
- * same question with retrieval switched off. Because an app can claim to do
- * RAG while quietly answering from the model's own memory, and the only way to
- * tell from outside is to remove the corpus and see whether anything changes.
  */
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";

@@ -1,18 +1,9 @@
-/**
- * Client configuration.
- *
- * The publishable key is meant to be public: every table is protected by
- * row-level security, so it grants nothing on its own. The Gemini key is NOT
- * here and never will be: AI calls go through edge functions, which is the
- * whole reason the app has a server side at all.
- */
+// Client config. The publishable key is safe to ship (RLS protects every
+// table). The Gemini key never comes here; AI goes through edge functions.
 
 /**
- * Defaults point at the reference deployment. To run Markwise against your own
- * Supabase project without editing a tracked file, define the global before the
- * module loads, e.g. in a `config.local.js` that .gitignore already covers:
- *
- *   <script>window.MARKWISE_CONFIG = { url: "https://xxx.supabase.co", key: "sb_publishable_..." }</script>
+ * Defaults point at the reference deployment. To use your own project, set
+ * window.MARKWISE_CONFIG = { url, key } before this loads (config.local.js is gitignored).
  */
 const OVERRIDE = (typeof window !== "undefined" && window.MARKWISE_CONFIG) || {};
 
@@ -37,11 +28,7 @@ export const SOURCES = [
   { id: "self", label: "My own" },
 ];
 
-/**
- * Blue pen for your own homework, red pen for anything an examiner sees,
- * green for revision you set yourself. Tuition has no assessments, which the
- * add-task form reflects.
- */
+/** Blue for homework, red for anything an examiner sees, green for revision. */
 export const TASK_TYPES = [
   { id: "homework", label: "Homework" },
   { id: "assessment", label: "Assessment" },

@@ -1,29 +1,10 @@
 /**
- * Markwise service worker.
- *
- * Lets the app open without a network, on a train or in a school with one access
- * point between four hundred students. It is deliberately narrow:
- *
- *  - Same-origin files (the page, the stylesheets, every module) are
- *    NETWORK-FIRST with a cached fallback. The first version served the modules
- *    from cache and only ever refreshed the page, so after a deploy a returning
- *    student got the new index.html running old modules: a mismatched app that
- *    fails in ways nobody can reproduce. Preferring the network means a student
- *    who is online always gets today's code, and the cache only matters when
- *    they are not.
- *  - The Supabase client library is imported from a CDN and is the one thing
- *    the app cannot start without, so that single origin is cached too.
- *    Without it, opening the app offline gave a blank page.
- *  - Only successful responses are cached. A 404 or a 500 must never replace
- *    a good copy.
- *  - Nothing else cross-origin is touched. Supabase and Gemini requests go
- *    straight to the network, because a cached answer to "what do I owe this
- *    week" is worse than an honest failure.
- *
- * Offline you get the app and your session; anything that needs the database
- * says so and fails honestly.
- *
- * Bump CACHE on every release. It is what retires the previous release's files.
+ * Service worker, so the app opens offline.
+ *  - Same-origin files are network-first with a cached fallback, so online
+ *    students always get today's code.
+ *  - The Supabase client from the CDN is cached too; without it offline was blank.
+ *  - Only good responses are cached. Supabase and Gemini are never cached.
+ * Bump CACHE on every release.
  */
 
 const CACHE = "markwise-v7";
@@ -46,8 +27,7 @@ const SHELL = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE)
-      // One missing file must not fail the whole install, so each is added
-      // individually and a failure is shrugged off.
+      // Add files one by one so a single missing file can't fail the install.
       .then((cache) => Promise.all(SHELL.map((url) => cache.add(url).catch(() => {}))))
       .then(() => self.skipWaiting()),
   );

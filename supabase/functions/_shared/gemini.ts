@@ -1,42 +1,21 @@
 /**
- * Gemini client tuned for the free tier.
- *
- * Three things matter at this tier and are handled here rather than at each
- * call site:
- *
- *  1. Rate limits are per-key and low. GEMINI_API_KEYS may hold several
- *     comma-separated keys; requests round-robin across them and a 429 rotates
- *     to the next key before backing off.
- *  2. Free-tier 429/503 are routine, not exceptional. Every call retries with
- *     jittered exponential backoff.
- *  3. Embedding is the expensive half of ingestion, so batchEmbedContents is
- *     used and the task type is set correctly (RETRIEVAL_QUERY for questions
- *     the student types, RETRIEVAL_DOCUMENT for corpus text).
+ * Gemini client for the free tier. Keys in GEMINI_API_KEYS are rotated; a 429
+ * means that model is out for the day, so move on instead of backing off; 5xx
+ * gets jittered retries. Embeddings set the right task type (query vs document).
  */
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
 
-/**
- * Generation models, tried in order.
- *
- * Free-tier quota is per model as well as per key, and the flagship flash
- * model is the most contended. A student asking a question at a busy moment
- * gets a 429 from it and a perfectly good answer from the next one down. The
- * better model leads here (unlike ingestion) because this text is read by a
- * student and marking quality matters more than throughput.
- */
+// Tried in order. The better model leads here (unlike ingestion) because a
+// student reads this text; a 429 just falls through to the next.
 export const CHAT_MODELS = (Deno.env.get("GEMINI_CHAT_MODEL") ?? "gemini-3.5-flash,gemini-3-flash-preview,gemini-3.5-flash-lite")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
 
-export const CHAT_MODEL = CHAT_MODELS[0];
 export const EMBED_MODEL = Deno.env.get("GEMINI_EMBED_MODEL") ?? "gemini-embedding-001";
 
-/**
- * Must match the ingestion pipeline and the `vector(768)` column exactly. A
- * query embedded at a different width cannot be compared with the corpus.
- */
+// Must match the ingested vectors and the vector(768) column.
 export const EMBED_DIMS = 768;
 
 const KEYS = (Deno.env.get("GEMINI_API_KEYS") ?? Deno.env.get("GEMINI_API_KEY") ?? "")
@@ -96,8 +75,7 @@ async function callGemini(
 
     if (res.ok) return res;
 
-    // Try remaining keys once, without sleeping on an exhausted quota.
-    // 503/500 are genuine transients and do deserve a retry.
+    // Try the other keys once, no sleeping on a spent quota. 5xx gets a retry.
     if (res.status === 429) {
       exhausted.add(key);
       attempt--;
@@ -160,11 +138,7 @@ export async function embedBatch(
   return out;
 }
 
-/**
- * Scale to unit length. Vectors truncated below the model's native width come
- * back un-normalised, and the ingestion pipeline normalises before storing
- * queries must be treated identically or the two live in different spaces.
- */
+// Same normalisation as ingestion, or queries and corpus live in different spaces.
 export function normalise(values: number[]): number[] {
   let sum = 0;
   for (const v of values) sum += v * v;
@@ -199,9 +173,8 @@ function buildBody(prompt: string, o: GenerateOptions) {
         ? { responseMimeType: "application/json", responseSchema: o.jsonSchema }
         : {}),
     },
-    // The corpus contains exam questions about biology, history and war. The
-    // default filters trip on legitimate syllabus content, so they are relaxed
-    // to the lowest non-off setting the API allows.
+    // Exam questions cover biology, history and war; the default filters trip on
+    // real syllabus content, so use the lowest setting short of off.
     safetySettings: [
       "HARM_CATEGORY_HARASSMENT",
       "HARM_CATEGORY_HATE_SPEECH",
@@ -260,17 +233,9 @@ export function parseJSON<T>(raw: string): T {
 }
 
 /**
- * Streaming generate, yielding text deltas as they arrive.
- *
- * Walks the same model chain `generate()` does, not just the first one that
- * opens a connection. A model can open a stream successfully and still finish
- * having yielded nothing (a safety block, or an empty candidate) without ever
- * returning a non-2xx status, so a stream that ends with zero text falls
- * through to the next model instead of being mistaken for a real, empty
- * answer. Falling through is safe here specifically because nothing has been
- * yielded to the caller yet: the moment a chunk carries text it is yielded
- * immediately, so first-token latency is unaffected, and switching models
- * only ever happens before the caller has seen anything.
+ * Streaming generate. A model can open a stream and still end with no text
+ * (safety block, empty candidate), so that falls through to the next model.
+ * Safe because we only switch before anything has been yielded.
  */
 export async function* generateStream(
   prompt: string,

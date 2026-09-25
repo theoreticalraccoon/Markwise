@@ -1,10 +1,4 @@
-/**
- * Application state.
- *
- * A single observable object rather than a framework: the app is small enough
- * that views re-render themselves on the events they care about, and the
- * absence of a build step is worth more here than reactivity.
- */
+// App state: one observable object. Small enough app that a framework isn't worth a build step.
 
 import { STORAGE } from "./config.js";
 
@@ -25,8 +19,7 @@ export const store = {
     hideEmpty: false,
     /** The last COURSE picked on a form (a planner subject). */
     lastSubject: null,
-    /** The last CORPUS browsed in the library or recall. A different thing:
-     *  see the note on corpusCode. */
+    /** The last CORPUS browsed in library or recall (see corpusCode). */
     lastCorpus: null,
     plannerView: "board",
   },
@@ -82,12 +75,9 @@ export function subjectName(code) {
 }
 
 /**
- * Which subject's papers a course is answered from.
- *
- * A school's "Extra Maths" or "Single Science Physics" class has no syllabus
- * of its own, but the questions its students need are 0580's and 0625's. The
- * planner keeps the course separate; retrieval follows the pointer. Anything
- * sent to the corpus, search, ask, mark, mock, must go through this.
+ * Which subject's papers a course answers from. "Extra Maths" and "Single
+ * Science Physics" have no syllabus of their own, so they borrow Maths A's and
+ * Physics's. Everything sent to search, ask, mark or mock goes through this.
  */
 export function corpusCode(code) {
   const row = store.subjects.find((s) => s.code === code);
@@ -95,14 +85,9 @@ export function corpusCode(code) {
 }
 
 /**
- * The course a student takes that answers from this corpus subject.
- *
- * The planner keeps COURSES ("Extra Maths", "Single Science Physics") and the
- * study tools work on CORPORA ("Mathematics A", "Physics"). Anything the tools
- * create for the planner, a revision task, has to be filed under a course the
- * student actually has, or the board grows a second card for the corpus subject
- * with a name they never picked. The exact course wins; failing that, any
- * course that borrows this corpus; failing that, the corpus subject itself.
+ * The course a student takes that uses this corpus subject, so a revision task
+ * lands on a planner card they actually have. Exact course, then any course
+ * borrowing this corpus, then the corpus subject itself.
  */
 export function courseFor(corpus) {
   const mine = mySubjectRows();
@@ -141,7 +126,6 @@ export function reset() {
   store.usage = [];
   store.isAdmin = false;
   store.ready = false;
-  // Preferences belong to a person, not to the browser. The next account to sign
-  // in here must not inherit the last one's tab, filters or remembered subject.
+  // Prefs belong to the person; the next account mustn't inherit them.
   Object.assign(store.prefs, DEFAULT_PREFS);
 }

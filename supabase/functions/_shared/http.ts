@@ -1,10 +1,5 @@
-/**
- * CORS + response helpers shared by every Markwise edge function.
- *
- * The frontend is a static page that can be hosted anywhere (file://, GitHub
- * Pages, Netlify), so the allow-list is driven by an env var rather than
- * hard-coded, with "*" as the development default.
- */
+// CORS and response helpers. The frontend can be hosted anywhere, so origins
+// come from ALLOWED_ORIGINS ("*" by default).
 
 const ALLOWED = (Deno.env.get("ALLOWED_ORIGINS") ?? "*")
   .split(",")

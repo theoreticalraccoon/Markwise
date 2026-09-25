@@ -1,17 +1,8 @@
 /**
- * Pairing question parts with their marking points.
- *
- * This is the join no public dataset gives you, and it is what makes "mark my
- * answer" possible. Both sides are parsed independently from two different
- * PDFs whose numbering agrees in principle and disagrees in practice
- * "4(b)(ii)" in the paper can appear as "4(b)(ii)", "4 b ii", "4(b)ii" or
- * "4bii" in the scheme.
- *
- * Matching therefore runs in three passes, strictest first, and anything left
- * unmatched is left unmatched. An unpaired question is still useful for
- * retrieval and mock generation; a *wrongly* paired one would have the marking
- * route grading an answer against a different question's mark scheme, which is
- * the single worst failure this app can have.
+ * Pair question parts with mark-scheme rows. The two PDFs number things
+ * differently ("4(b)(ii)", "4 b ii", "4bii"), so matching runs strictest first
+ * and leaves anything doubtful unpaired. A wrong pairing marks an answer
+ * against someone else's scheme, which is the worst thing this app can do.
  */
 
 /** '4(b)(ii)' → '4bii' */
@@ -74,12 +65,9 @@ export function pairQuestions(questions, msRows) {
       return merge(q, ms);
     }
 
-    // 2. Same question and same part, tolerating only a missing SUB-part level
-    //    (schemes often fold "(a)(i)" into one row when (a) has a single part).
-    //
-    //    The part level is matched strictly. Letting "4(b)" match a row for
-    //    "4" would mark a student's answer against the whole question's
-    //    scheme, which is worse than not marking it at all.
+    // 2. Same question and part, allowing only a missing sub-part level. The
+    //    part must match exactly: marking 4(b) against all of Q4 is worse
+    //    than not marking it.
     const [qn, qp, qs] = segments(q.questionNo);
     const normalised = [];
     for (const [k, row] of byKey) {
@@ -94,9 +82,7 @@ export function pairQuestions(questions, msRows) {
       return merge(q, normalised[0].row);
     }
 
-    // 3. Whole-question fallback: attach the root row, but only when the
-    //    question has no parts: otherwise every part would get the same
-    //    scheme and marking would be nonsense.
+    // 3. Whole-question fallback, only for questions with no parts.
     if (!qp && !qs) {
       const rootRow = byKey.get(qn);
       if (rootRow) {
@@ -104,9 +90,8 @@ export function pairQuestions(questions, msRows) {
         return merge(q, rootRow);
       }
 
-      // ICT practical papers sometimes call a whole task "B5" while the
-      // scheme labels its only row "B5(a)". That is unambiguous only when
-      // there is exactly one scheme row under the lettered task root.
+      // ICT sometimes calls a task "B5" while the scheme's only row is "B5(a)".
+      // Safe only when there is exactly one such row.
       if (/^[ab]\d+$/i.test(String(q.questionRoot))) {
         const candidates = msRows.filter((row) =>
           key(row.questionRoot) === key(q.questionRoot),
@@ -135,11 +120,7 @@ function merge(q, ms) {
   };
 }
 
-/**
- * Attach examiner-report commentary. Reports discuss questions loosely
- * ("Question 4(b) was poorly answered…"), so matching is by root question only
- * and the text is attached as context, never as a marking authority.
- */
+/** Examiner-report commentary, matched by root question only. Context, never marking authority. */
 export function attachExaminerReport(paired, reportPages) {
   if (!reportPages?.length) return paired;
   const text = reportPages.map((p) => p.text).join("\n");

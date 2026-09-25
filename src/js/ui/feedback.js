@@ -20,10 +20,7 @@ export function toast(message, kind = "") {
 
 let closeCurrent = null;
 
-/**
- * Open a modal. `body` is HTML; `onMount` receives the dialog element so the
- * caller can wire its own controls.
- */
+/** Open a modal. `body` is HTML; `onMount` gets the dialog to wire its controls. */
 export function openModal({ title, body, actions = "", onMount, onClose, width = "" }) {
   closeModal();
   const overlay = byId("modalOverlay");
@@ -62,9 +59,7 @@ export function openModal({ title, body, actions = "", onMount, onClose, width =
     document.body.classList.remove("modal-open");
     if (previous?.focus) previous.focus();
     closeCurrent = null;
-    // However the modal closed (Escape, the backdrop, another modal opening on
-    // top of it), whoever is waiting on it hears about it. Without this a
-    // confirm dismissed with Escape never resolved and its caller hung forever.
+    // Tell the caller however it closed, or a confirm dismissed with Escape hangs.
     onClose?.();
   };
 

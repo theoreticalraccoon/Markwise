@@ -1,22 +1,9 @@
 /**
- * Splitting papers into question parts, and mark schemes into marking points.
+ * Split question papers into parts and mark schemes into marking points.
  *
- * This is the hardest part of the project and the reason a general chatbot
- * cannot do what Markwise does. Two strategies run in order:
- *
- *   1. A deterministic parser. Exam papers are rigidly formatted. A question
- *      starts at column zero with "3", parts are "(a)", sub-parts are "(ii)",
- *      and the mark allocation is "[4]" at the end of the last line of the
- *      part. When this works it is exact, free, and fast.
- *
- *   2. An LLM repair pass, used only on the questions the deterministic parser
- *      rejected (no marks found, implausible length, no part structure). This
- *      keeps token spend proportional to how badly a given paper is laid out
- *      rather than to how many papers there are.
- *
- * Everything downstream assumes the invariant this module enforces: a part is
- * only emitted if it has text AND a mark allocation. An unmarked fragment
- * would pollute retrieval and, worse, let the marking route award marks
+ * A deterministic parser runs first (exam papers are rigidly laid out); the
+ * model only re-reads papers it gets wrong. Every emitted part has text AND a
+ * mark allocation, because an unmarked fragment would let marking award marks
  * against nothing.
  */
 
@@ -53,19 +40,13 @@ const NOISE = [
 export function cleanLines(text) {
   return text
     .split("\n")
-    // "DO NOT WRITE IN THIS AREA" is printed in the margin and extraction glues
-    // it onto whatever shares its line: "(1) DO NOT WRITE IN THIS AREA" hid a
-    // mark allocation, and "...AREA(c) Use your graph" hid a part label. Neither
-    // is ever content, so it goes wherever it appears.
+    // "DO NOT WRITE IN THIS AREA" gets glued onto neighbouring lines and hides
+    // mark allocations and part labels, so it goes wherever it appears.
     .map((l) => l.replace(/DO NOT WRITE IN THIS (?:AREA|MARGIN)/gi, " ").replace(/ /g, " ").replace(/\.{4,}/g, " ").trimEnd())
     .filter((l) => l.trim() && !NOISE.some((re) => re.test(l.trim())));
 }
 
-/**
- * Strip the front matter. Both boards open with a cover page of candidate
- * details and instructions, and Edexcel maths papers add a formulae sheet
- * none of it is markable and all of it pollutes retrieval.
- */
+/** Drop cover pages and formulae sheets: nothing markable, and they pollute retrieval. */
 export function dropCoverPage(pages) {
   return pages.filter((p, i) => {
     if (i > 2) return true;
@@ -87,23 +68,17 @@ const Q_START = /^([AB]?\d{1,2})\s*(?:[).]|\s)\s*(.*)$/i;   // "3 A car travels�
 const PART = /^\*?\(([a-h])\s*\)\s*(.*)$/;                    // "(b) Explain…", "(c ) Discuss…"
 const SUBPART = /^\(((?:i|v|x)+)\)\s*(.*)$/i;                 // "(ii) Calculate…"
 
-// The two boards mark up mark allocations differently and both must be read.
+// Cambridge puts marks in [3] at the line end, Edexcel in (3) on its own line.
 const MARKS_BRACKET = /\[\s*(\d{1,2})\s*\]\s*$/;              // Cambridge: "… [3]"
 const MARKS_ALONE = /^\(?\s*(\d{1,2})\s*\)$/;                 // Edexcel: "(2)"; some text layers lose the opening bracket
-// Maths prints "(Total for Question 1 is 3 marks)"; the sciences print
-// "(Total for Question 8 = 6 marks)". Only the first was recognised, so on a
-// Physics paper the total line was kept as question text and a whole-question
-// mark allocation (all an extended-response question has) was never read.
+// Maths says "is 3 marks", the sciences "= 6 marks". Both close a question.
 const MARKS_TOTAL = /\(Total for Question\s+[AB]?\d+\s*(?:is|=)\s*(\d+)\s+marks?\)/i;
 const TASK_HEADING = /^Task\s+([AB]\d{1,2})([a-z])?\s*$/i;
 const TASK_TOTAL = /^\(?(?:Total for Task)\s+([AB]\d{1,2})\s*(?:is|=)?\s*(\d+)(?:\s+marks?)?\)?$/i;
 
 /**
- * Marks for one buffered block, and the block with the mark-up removed.
- *
- * `allowTotal` is false for parts: "(Total for Question 1 is 3 marks)" trails
- * the *last part* of a question, and crediting that part with the whole
- * question's marks would inflate every final part on an Edexcel paper.
+ * Marks for one buffered block, plus the text without the mark-up. Parts don't
+ * take the question total: it trails the last part and would inflate it.
  */
 function extractMarks(lines, allowTotal) {
   let marks = null;
@@ -131,9 +106,7 @@ function extractMarks(lines, allowTotal) {
   return { marks, text };
 }
 
-/**
- * @returns {{questionNo,questionRoot,text,marks,page}[]}
- */
+/** @returns {{questionNo,questionRoot,text,marks,page}[]} */
 export function parseQuestionPaper(pages) {
   if (isPracticalTaskPaper(pages)) return parsePracticalTaskPaper(pages);
 
@@ -142,9 +115,8 @@ export function parseQuestionPaper(pages) {
   let buf = [];
   let startPage = 1;
 
-  // Stems: the un-marked text that introduces the parts beneath it. "1 A car
-  // accelerates from rest." earns no marks itself but every part of question 1
-  // is meaningless without it, so it is carried down rather than emitted.
+  // Stems ("1 A car accelerates from rest.") earn no marks but every part needs
+  // them, so they're carried down rather than emitted.
   let rootStem = "", partStem = "";
 
   const flush = () => {
@@ -175,18 +147,15 @@ export function parseQuestionPaper(pages) {
     });
   };
 
-  // Edexcel closes every question with "(Total for Question N is/= M marks)".
-  // Where a paper does that, a new question can only begin AFTER that line: a
-  // numbered list inside a question ("1 the mass, 2 the speed") is set in the
-  // same margin column as question numbers and otherwise looks exactly like the
-  // next question starting, which cut question 1 in two and lost its parts.
+  // On papers that print "(Total for Question N ...)", a new question can only
+  // start after that line. Otherwise a numbered list inside a question looks
+  // exactly like the next question starting.
   const printsTotals = pages.some((p) => MARKS_TOTAL.test(p.text));
   let closed = true;   // nothing to close before question 1
 
   for (const page of pages) {
-    // Pages laid out with a question-number margin carry explicit markers, put
-    // there from the position of the number on the page. On those pages a
-    // plain "17 chose knitting" line is data, never a question start.
+    // Pages with a question-number margin carry markers from pdf.js. There, a
+    // plain "17 chose knitting" line is data, never a question.
     const marked = page.text.includes("⟦Q");
 
     for (const raw of cleanLines(page.text)) {
@@ -196,12 +165,8 @@ export function parseQuestionPaper(pages) {
       let qm = null;
       const m = line.match(/^⟦Q([AB]?\d{1,2})⟧\s*(.*)$/i);
       if (m) {
-        // Trusted: its position says it is a question number. It only has to be
-        // a plausible next one, and needs no prose after it (a diagram-only
-        // stem has none).
-        // Exactly the next number, not "within 3": diagram labels sit in the
-        // margin too ("12 cm" beside a figure in question 9), and a loose rule
-        // let one of them jump the sequence to 12 and lose 10 and 11.
+        // A margin number is trusted, but only as exactly the next number:
+        // diagram labels ("12 cm") sit in the margin too.
         const n = m[1].toUpperCase();
         const exact = isNextQuestion(n, root, { strict: true }) && (!printsTotals || closed);
         if (exact) qm = [null, m[1], m[2] ?? ""];
@@ -222,9 +187,8 @@ export function parseQuestionPaper(pages) {
         rootStem = "";
         partStem = "";
         startPage = page.n;
-        // "6 (a) Simplify ..." puts the question number and its first part on one
-        // line. Without peeling the label off here, 6(a) is emitted as a bare
-        // "6" and then fails to pair with the scheme's 6(a) row.
+        // "6 (a) Simplify ..." has the number and first part on one line; peel the
+        // label or 6(a) comes out as "6" and never pairs.
         const peeled = peelLabels(qm[2] ?? "");
         part = peeled.part;
         sub = peeled.sub;
@@ -333,13 +297,8 @@ function parsePracticalTaskPaper(pages) {
 }
 
 /**
- * One chunk per question part, keeping the first occurrence.
- *
- * A repeated question number is never legitimate. It means the parser lost
- * track of where it was. Keeping the duplicates would put the same question in
- * a mock paper twice and split its marks across several rows, so they are
- * dropped here and counted, so `looksParsed` can send a badly-confused paper to
- * the model instead.
+ * Keep the first of each question number. A repeat means the parser lost its
+ * place; drops are counted so looksParsed can hand the paper to the model.
  */
 function dedupe(parts) {
   const seen = new Set();
@@ -358,13 +317,7 @@ function dedupe(parts) {
   return out;
 }
 
-/**
- * Strip leading "(a)" / "(ii)" labels from the start of a line.
- *
- * Papers put the question number, its first part and sometimes its first
- * sub-part on one line. Each label that stays buried in the text is a part
- * that never gets its own chunk and never pairs with its mark scheme row.
- */
+/** Peel leading "(a)" / "(ii)" labels so each part gets its own chunk. */
 function peelLabels(text, { partsAlreadyTaken = false } = {}) {
   let rest = text.trim();
   let part = null;
@@ -385,21 +338,14 @@ function peelLabels(text, { partsAlreadyTaken = false } = {}) {
   return { part, sub, rest };
 }
 
-/**
- * Is this the next question number?
- *
- * Strictly "current + 1" is too brittle. When one question's opening line is
- * missed, a diagram-heavy stem, an odd font, the parser sticks on the
- * previous number and every subsequent "(a)" and "(b)" is attributed to it,
- * producing eight copies of "2(b)" with the wrong text. Allowing a small
- * forward jump lets it resynchronise, while staying forward-only stops a
- * numeric sequence inside a question ("1 4 7 10") from resetting it.
- */
+/** "B3" -> { prefix: "B", number: 3 }. */
 function splitQuestionRoot(value) {
   const match = String(value ?? "").toUpperCase().match(/^([AB]?)(\d{1,2})$/);
   return match ? { prefix: match[1], number: Number(match[2]) } : null;
 }
 
+// A small forward jump lets the parser resync after missing a question; it never
+// goes backwards, so a "1 4 7 10" list inside a question can't reset it.
 function isNextQuestion(value, current, { strict = false } = {}) {
   const next = splitQuestionRoot(value);
   const previous = splitQuestionRoot(current);
@@ -413,13 +359,7 @@ function isNextQuestion(value, current, { strict = false } = {}) {
     next.number <= 2;
 }
 
-/**
- * Does the text after a question number look like the start of a question?
- *
- * A part label always does. Otherwise it has to be long enough to be prose
- * which rejects the units and measurements that litter diagrams ("12 m",
- * "9 cm") without needing to know what the diagram shows.
- */
+/** Part label, or enough prose to rule out diagram units like "12 m". */
 function opensAQuestion(rest) {
   const text = (rest ?? "").trim();
   return text.startsWith("(") || text.length >= 10;
@@ -427,20 +367,14 @@ function opensAQuestion(rest) {
 
 /* ------------------------------------------------------------ mark schemes -- */
 
-/**
- * Cambridge mark schemes are tables: question ref | answer | marks | guidance.
- * Text extraction flattens them, but the question ref reliably starts a row and
- * the mark count reliably ends it, which is enough to segment on.
- */
-// The `\*?` is for starred questions ("1*": assessed for written
-// communication), which otherwise fail to match and lose the whole question.
+// Mark schemes are tables (ref | answer | marks | guidance). Flattened, the ref
+// still starts a row and the mark count ends it.
+// \*? handles starred questions ("1*"), which otherwise lose the whole question.
 const MS_ROW = /^([AB]?\d{1,2})\*?\s*(?:\(([a-h])\))?\s*(?:\(((?:i|v|x)+)\))?(?:\s+(.*))?$/i;
 const MS_COMPACT_ROW = /^([AB]?\d{1,2})([a-h])(?:(?:\(((?:i|v|x)+)\))|((?:i|v|x)+))?(?:\s+(\S.*))?$/i;
 
-// Edexcel restates the table header above every question. Where that happens
-// it is the most reliable row boundary in the document: far better than the
-// numbering, because working like "2 card = 6" is indistinguishable from the
-// start of question 2 by any other means.
+// Edexcel repeats the table header above every question. Where it does, that
+// is the safest row boundary: working like "2 card = 6" looks just like Q2.
 const MS_HEADER = /^(?:(?:q|question)\b.*\b(?:answer|working|indicative content|mark scheme)\b.*|question\s+mp\b.*\bmarks?|question(?:\s+number)?|answer\b.*\bmarks?)$/i;
 
 // Superscript ordinals ("1st") split onto their own line during extraction.
@@ -489,9 +423,7 @@ export function parseMarkScheme(pages) {
   const all = pages.flatMap((p) => cleanLines(p.text).map((l) => l.trim()));
   const letteredRoots = all.some((line) => /^[AB]\d{1,2}\s*\([a-h]\)/i.test(line));
 
-  // Two layouts, decided from the document itself. When the header is restated
-  // throughout, trust it; when it appears once or twice (Cambridge prints it
-  // per page at most), fall back to the numbering.
+  // Trust restated headers when there are several; otherwise use numbering.
   const headerGated = all.filter((l) => MS_HEADER.test(l)).length >= 3;
   const markPointLayout = all.some((line) => /^Question\s+mp\b/i.test(line));
   let afterHeader = false;
@@ -504,18 +436,14 @@ export function parseMarkScheme(pages) {
     if (MS_JUNK.test(line)) continue;
     if (/^(guidance|mark scheme|notes)$/i.test(line)) continue;
 
-    // "Total 3 marks" closes a question. The next question often follows with
-    // no restated header at all (Q16 sits straight under Q15 on the same page),
-    // so this is a row boundary just as the header is.
+    // "Total 3 marks" closes a question; the next often has no header.
     if (MS_TOTAL_ROW.test(line)) {
       if (current) current.lines.push(line);
       afterHeader = true;
       continue;
     }
 
-    // ICT written-paper schemes compact the whole identifier into one token:
-    // `1a`, `1hi`, `2aiii`. The repeated table header makes these safe row
-    // boundaries; outside that layout the same shape could be ordinary data.
+    // ICT schemes compact identifiers (1a, 1hi, 2aiii). Only safe under headers.
     const compact = line.match(MS_COMPACT_ROW);
     if (headerGated && afterHeader && compact) {
       const n = compact[1].toUpperCase();
@@ -533,20 +461,12 @@ export function parseMarkScheme(pages) {
         const n = m[1].toUpperCase();
         const [, , part, sub, rest] = m;
 
-        // History mark schemes open with generic level tables numbered 0, 1,
-        // 2... before the real A1/B1 rows. Once the document declares lettered
-        // roots, those rubric levels are never question identities.
+        // History schemes start with level tables numbered 0, 1, 2 before A1/B1.
         if (letteredRoots && (!/^[AB]/.test(n) || !part)) continue;
 
-        // Mark schemes are printed in question order, and flattening a table
-        // to text turns working like "3 × n + k" into something that looks
-        // exactly like the start of question 3. Requiring the number to be the
-        // next one, or the same one with a new part label, rejects those
-        // without needing to understand the mathematics.
-        // Where the header is restated the boundary is trusted, but only for
-        // the next question number. The first line under a header can be
-        // stacked-fraction working ("12 12") that reads as a row for question
-        // 12, and taking it lost the real row for question 15 that followed.
+        // Schemes run in question order, so only accept the next number (or the same
+        // one with a new part). That rejects working like "3 × n + k". Under a header,
+        // only the next number is trusted: stacked fractions like "12 12" look like rows.
         const isNext = isNextQuestion(n, root, { strict: true });
         const startsNewQuestion = headerGated ? afterHeader && (markPointLayout || isNext) : isNext;
         const continuesSameQuestion = n === root && (part || sub);
@@ -725,20 +645,14 @@ Rules:
 - If a part has no mark allocation, omit it entirely.
 `.trim();
 
-/**
- * Re-parse pages with the model. Used when the deterministic parser produced
- * nothing usable: typically OCR'd scans, or maths papers whose layout is
- * two-column.
- */
+/** Model re-parse for papers the regex pass couldn't read (scans, two-column maths). */
 export async function llmParseQuestions(pages, hint = "") {
   if (!LLM_PARSE) return [];
   const text = pages.map((p) => p.text).join("\n\n").slice(0, 60000);
   if (text.replace(/\s/g, "").length < 200) return [];
 
-  // Output is mostly a verbatim copy of the input, so it needs a budget on
-  // the same order as the input itself: 8192 was tight enough that a dense
-  // paper (observed: a 100-mark Maths B paper) got cut off mid-JSON and the
-  // whole re-read was thrown away, keeping the worse deterministic parse.
+  // Output is mostly a copy of the input, so budget for it. 8192 truncated a
+  // 100-mark Maths B paper mid-JSON.
   const { parts } = await generateJSON(
     `${hint ? `PAPER: ${hint}\n\n` : ""}PAGES:\n${text}`,
     PARSE_SCHEMA,
@@ -806,13 +720,7 @@ export async function llmParseMarkScheme(pages, hint = "") {
 
 /* --------------------------------------------------------------- quality -- */
 
-/**
- * The total the paper says it is worth.
- *
- * Edexcel prints "TOTAL FOR PAPER IS 100 MARKS" at the end; Cambridge prints
- * "Total marks: 100" on the cover. Reading it gives the parser something it
- * has never had: an independent number to check its own output against.
- */
+/** The paper's own printed total: an independent check on the parse. */
 export function printedTotal(pages) {
   const text = pages.map((p) => p.text).join("\n");
   const hit =
@@ -822,25 +730,14 @@ export function printedTotal(pages) {
   return hit ? Number(hit[1]) : null;
 }
 
-/**
- * Does this paper offer more questions than a candidate answers? ("Answer
- * TWO questions from Section A"; "Answer ONE question from each section";
- * "answer one question from Questions 4, 5 and 6".) A paper shaped like that
- * legitimately prints more marks' worth of questions than its own total: the
- * printed total is what answering the REQUIRED subset is worth, not the sum
- * of everything on the page. Seen on English Literature, English Language A
- * and Geography's essay/case-study papers; a plain "Answer ALL questions"
- * paper (Business, Economics, the sciences) does not match this.
- */
+// Papers that offer a choice ("Answer TWO questions from Section A") print more
+// marks than their total, so the total check doesn't apply. "Answer ALL" doesn't match.
 const OFFERS_CHOICE = /\banswer\s+(?:one|two|three|four|five|\d+)\s+questions?\b/i;
 export function offersChoice(pages) {
   return OFFERS_CHOICE.test(pages.map((p) => p.text).join("\n"));
 }
 
-/**
- * "(Total for Question 7 is 4 marks)" for every question that prints one.
- * Edexcel does; it is the strongest per-question check available.
- */
+/** "(Total for Question 7 is 4 marks)" for every question that prints one. */
 export function printedQuestionTotals(pages) {
   const text = pages.map((p) => p.text).join("\n");
   const totals = new Map();
@@ -887,19 +784,10 @@ function candidateMarks(parts, root, alternativeGroups) {
 }
 
 /**
- * Do the parsed questions add up to the paper?
- *
- * Three independent checks, any of which catches a parser that has quietly
- * lost questions:
- *   - the top-level question numbers should run 1..N with nothing missing;
- *   - the marks should sum to the paper's printed total, unless the paper
- *     offers a choice of questions (see offersChoice, above);
- *   - each question's own parts should sum to that question's own printed
- *     total.
- *
- * Measured on four real Edexcel Maths A papers before the superscript fix,
- * three of them lost between 2 and 6 questions and summed to 85, 82 and 97
- * marks against a printed 100, and every one of them passed `looksParsed`.
+ * Does the parse add up? Question numbers run without gaps, marks sum to the
+ * printed total (unless the paper offers a choice), and each question's parts
+ * sum to its own printed total. Before this, Maths A papers missing 2-6
+ * questions (85/100, 82/100) passed.
  */
 export function consistency(parts, pages) {
   const roots = [...new Set(parts.map((p) => String(p.questionRoot).toUpperCase()))]
@@ -918,9 +806,7 @@ export function consistency(parts, pages) {
 
   const sum = parts.reduce((n, p) => n + (p.marks || 0), 0);
   const printed = printedTotal(pages ?? []);
-  // A choice paper prints more questions than it expects answered, so the
-  // sum of every parsed part is supposed to exceed the printed total: that
-  // is not the parser having invented marks, so it is not scored against it.
+  // Choice papers are meant to exceed the total, so skip that check for them.
   const choice = pages ? offersChoice(pages) : false;
   const totalOk = printed === null || choice ? null : sum === printed;
 
@@ -944,19 +830,10 @@ export function consistency(parts, pages) {
   };
 }
 
-/**
- * Did the deterministic pass actually work? A real paper has several parts,
- * most of them carrying marks. Anything less means the layout defeated the
- * regexes and the LLM pass should take over.
- *
- * `pages`, when given, also runs the consistency checks: a parse that is
- * missing questions, or that does not add up to the printed total, is not a
- * parse that worked, however many parts it produced.
- */
+/** Did the regex pass work? Enough parts, mostly with marks, and (given pages) consistent. */
 export function looksParsed(parts, pages = null) {
   if (parts.length < 3) return false;
-  // Heavy duplication means the parser lost its place; the text it did keep is
-  // attributed to the wrong questions, so the model should re-read the paper.
+  // Lots of duplicates means it lost its place; let the model re-read.
   if ((parts.duplicatesDropped ?? 0) > parts.length * 0.2) return false;
   const withMarks = parts.filter((p) => p.marks > 0).length;
   if (withMarks / parts.length < 0.5) return false;

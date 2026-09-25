@@ -2,20 +2,12 @@
 /**
  * Markwise ingestion CLI.
  *
- *   node ingest.js papers     --dir ./pdfs [--subject 0625] [--dry]
- *   node ingest.js syllabus   --file ./0625_y25_sy.pdf
- *   node ingest.js boundaries --file ./grade-boundaries-june-2024-notional-component-int-gcse.pdf
- *   node ingest.js reembed    [--subject 0625]
- *   node ingest.js status
+ *   node ingest.js papers     --dir ./pdfs/4PH1 --subject E-4PH1 [--force] [--no-embed]
+ *   node ingest.js syllabus   --file ./pdfs/4PH1/E-4PH1_y17_sy.pdf
+ *   node ingest.js boundaries --file <pearson grade boundaries pdf> [--year --session]
+ *   node ingest.js classify | reembed | status [--subject E-4PH1]
  *
- * `papers` is the main command. It walks a directory of PDFs, groups question
- * papers with their mark schemes and examiner reports by paper identity, and
- * writes one embedded chunk per question part.
- *
- * The run is resumable: a paper whose sha256 already matches the database is
- * skipped without being opened, so re-running after a crash costs almost
- * nothing, and adding a new session to an existing corpus only processes the
- * new files.
+ * Resumable: a paper whose hash already matches the database is skipped.
  */
 
 import { readdir, stat } from "node:fs/promises";
@@ -77,7 +69,7 @@ async function groupHash(files) {
   return h.digest("hex");
 }
 
-/** "  (Q3 missing, 86/100 marks)": what a bad parse looks like, for the log. */
+/** "(Q3 missing, 86/100 marks)" for the log. */
 function describe(c) {
   const bits = [];
   if (c.missing.length) bits.push(`questions ${c.missing.join(",")} missing`);
@@ -151,9 +143,7 @@ async function papers() {
     if (!groups.has(id)) groups.set(id, { meta, files: {} });
     const group = groups.get(id);
     group.files[meta.kind] = file;
-    // The group inherits the identity of whichever file arrived first, which
-    // is alphabetical: "…_er_13" before "…_qp_13". The question paper is the
-    // one whose code every chunk is cited by, so it always wins.
+    // The question paper's code is what every chunk is cited by, so it wins.
     if (meta.kind === "qp") group.meta = meta;
   }
 
@@ -209,9 +199,7 @@ async function ingestGroup({ meta, files }) {
 
   const subject = (await getSubject(meta.subjectCode)) ?? (await ensureSubject(meta.subjectCode));
 
-  // --- has this exact file already been ingested? --------------------------
-  // The hash covers every file in the group. Hashing only the question paper
-  // meant that fixing a mark scheme and re-running was a silent no-op.
+  // Hash the whole group, so a fixed mark scheme still triggers a re-ingest.
   const hash = await groupHash(files);
   // markers: question papers only. See extractPages.
   const { pages: qpPagesRaw, pageCount } = await extractPages(files.qp, { markers: true });
@@ -233,19 +221,11 @@ async function ingestGroup({ meta, files }) {
 
   // --- parse questions -----------------------------------------------------
   let questions = parseQuestionPaper(body);
-  // `looksParsed` now also checks the parse against the paper itself: the
-  // question numbers must run without gaps and the marks must add up to the
-  // printed total. Before that, papers that had silently lost a fifth of their
-  // questions passed.
+  // looksParsed also checks for gaps and the printed total, not just part count.
   if (!looksParsed(questions, body)) {
     const before = consistency(questions, body);
     log(`  ${tag}: parse does not add up${describe(before)}: retrying with the model`);
-    // A rate limit or output-limit failure here used to propagate out of
-    // ingestGroup entirely (the outer try/catch just logs and abandons the
-    // group), throwing away a deterministic parse that was already usable
-    // (measured: three Biology papers at 65-67/70 marks, dropped completely
-    // rather than stored as-is) instead of keeping it, the way a failed
-    // mark-scheme re-read already does below.
+    // If the re-read fails (rate limit, output limit), keep the deterministic parse.
     try {
       const viaLlm = await llmParseQuestions(body, titleFor(meta, subject.name));
       // Keep whichever reading is the more complete, not merely the longer one.
@@ -264,12 +244,8 @@ async function ingestGroup({ meta, files }) {
     warn(`${tag}: stored, but incomplete${describe(check)}. Check it before relying on it.`);
   }
 
-  // --- parse and pair the mark scheme --------------------------------------
-  //
-  // The decision to spend a model call is made on the pairing rate itself,
-  // not on how many rows were parsed. A flattened table can yield a row for
-  // every question and still label the parts wrongly, which produces plenty of
-  // rows and almost no usable pairs.
+  // Decide on a model re-read from the pairing rate, not the row count: a
+  // flattened table can give a row per question and still label them wrong.
   let best = {
     paired: questions.map((q) => ({ ...q, msText: null, msMarks: null })),
     stats: { exact: 0, normalised: 0, root: 0, unmatched: questions.length },
@@ -354,8 +330,7 @@ async function ingestGroup({ meta, files }) {
   }));
 
   result.chunks = await replaceQuestionChunks(paper.id, "question", rows);
-  // Last, so a run that dies above leaves the paper looking unfinished and the
-  // next run redoes it instead of skipping it.
+  // Written last, so a run that dies halfway gets redone rather than skipped.
   await markIngested(paper.id, hash, { totalMarks: printedTotal(body) });
   log(
     `  ${tag}: ${result.chunks} parts · ${result.paired} with mark scheme ` +
@@ -364,12 +339,8 @@ async function ingestGroup({ meta, files }) {
   return result;
 }
 
-/**
- * The text that gets embedded is not the question alone. Retrieval has to find
- * a question from a paraphrase of its *answer* too ("why does a parachute slow
- * down") so the mark scheme's vocabulary is folded in, along with the topic and
- * the paper reference so identifier searches hit semantically as well.
- */
+// Fold the mark scheme, topic and paper ref into the embedded text so a
+// student's paraphrase of the answer still finds the question.
 function embedText(q, label, subjectName) {
   return [
     `${subjectName} · ${label?.topic ?? "IGCSE"}`,
@@ -440,13 +411,7 @@ async function syllabus() {
 
 /* ------------------------------------------------------------- boundaries -- */
 
-/**
- * Pearson publishes one "Notional component grade boundaries" PDF per series,
- * covering every International GCSE subject at once, rather than a
- * per-subject file. Rows for subjects we don't teach are skipped quietly;
- * rows for subjects we do are matched to the catalogue by their bare Pearson
- * code (4PH1 -> E-4PH1).
- */
+/** Pearson ships one grade-boundary PDF per series for every subject. Rows for subjects we don't carry are skipped. */
 async function boundaries() {
   const file = flags.file;
   if (!file) throw new Error("--file is required (a Pearson grade-boundaries PDF).");
@@ -506,9 +471,7 @@ async function reembed() {
     }
     log(`  embedded ${total}…`);
 
-    // See lib/reembed.js: without this, a quota that is out for the day
-    // makes the loop re-fetch the identical page forever, reheating the same
-    // rate limit indefinitely (observed: a 3+ hour hang before this existed).
+    // Stop when a whole pass embeds nothing, otherwise a dead quota loops forever.
     stalls = nextStalls(stalls, embedded);
     if (stalls >= STALL_LIMIT) {
       warn(`no progress after ${stalls} passes (quota likely exhausted for now); ${rows.length}+ chunk(s) still unembedded. Run 'reembed' again later.`);
@@ -520,15 +483,7 @@ async function reembed() {
 
 /* --------------------------------------------------------------- classify -- */
 
-/**
- * Tag already-ingested questions with their syllabus topic.
- *
- * Separate from ingestion because the two fail independently. Classification
- * is the first step to hit a quota ceiling, and losing a paper's whole parse
- * because the labelling ran out of requests would be absurd. It is also worth
- * re-running after a syllabus lands, which changes the vocabulary questions
- * should have been classified against in the first place.
- */
+/** Tag questions with their syllabus topic. Separate from ingestion because it's the first thing to run out of quota. */
 async function classify() {
   const subject = flags.subject ? String(flags.subject) : null;
 
@@ -543,7 +498,7 @@ async function classify() {
     return;
   }
 
-  // The topic vocabulary is per subject and must never be mixed between them.
+  // Topic vocabularies are per subject; never mix them.
   const bySubject = new Map();
   for (const r of rows) {
     if (!bySubject.has(r.subject_code)) bySubject.set(r.subject_code, []);

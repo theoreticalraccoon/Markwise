@@ -1,55 +1,44 @@
-# Supabase Migration Instructions
+# Database migrations
 
-The linked project was checked on 2026-09-23. All twelve migrations below are
-already recorded as applied. `supabase/tests/schema_contract.sql` passes on
-the live database. **Do not rerun markwise.sql or finish.sql on this project.**
+All twelve migrations are applied on the live project (checked 2026-09-23), and
+`supabase/tests/schema_contract.sql` passes there. **Don't rerun `markwise.sql` or
+`finish.sql` on it.**
 
-## Existing Project
+## An existing project
 
-No existing migration needs running again. For future changes use
-`supabase db push`: it applies only migrations missing from the history.
-To check the current schema in the SQL Editor, run
-`supabase/tests/schema_contract.sql`. It is read-only and returns a PASS row.
+Use `supabase db push`; it only applies what's missing from the history. To check the schema,
+run `supabase/tests/schema_contract.sql` in the SQL Editor. It's read-only and returns a PASS
+row. ("Private" in the SQL Editor only controls who sees the saved query.)
 
-The SQL Editor's Private section controls visibility of the saved query. It
-does not mean the SQL runs in a different database or a private schema.
+Two errors come from replaying old files after their replacements:
 
-The two reported errors are caused by running historical definitions after
-their replacements:
+- `20260914000000_markwise.sql` defines the old ten-argument `match_chunks`. The Edexcel
+  migration replaced it with a twelve-argument version, so replaying creates an overload and a
+  grant by name becomes ambiguous.
+- `20260921000000_finish.sql` defines `subject_papers(text)` without `paper_ref` and `tier`.
+  Postgres can't swap the newer return type back for the old one.
 
-- `20260914000000_markwise.sql` defines the old ten-argument `match_chunks`.
-  The Edexcel migration replaces it with a twelve-argument version. Replaying
-  the old migration can produce an overload, making a grant by name ambiguous.
-- `20260921000000_finish.sql` defines `subject_papers(text)` without
-  `paper_ref` and `tier`. The Edexcel version returns those extra columns.
-  PostgreSQL cannot replace that newer return type with the old shape.
+Don't drop the current functions to make old files run; the app needs the new definitions.
+"Success. No rows returned" is normal for schema statements.
 
-Do not drop the current functions to make the old files pass. The application
-requires their newer definitions. The live inspection found exactly one
-`match_chunks` (12 arguments) and the correct `subject_papers(text)` columns.
+## A new, empty project
 
-"Success. No rows returned" is normal for CREATE, ALTER, GRANT and other
-schema statements; they do not return result rows like SELECT does.
+Link it and run `supabase db push`. By hand in the SQL Editor, run each file once in this order:
 
-## New Empty Project
+| # | File | What it does |
+|---|---|---|
+| 1 | `20260707000000_init.sql` | tasks, profiles, RLS (the original homework tracker) |
+| 2 | `20260914000000_markwise.sql` | corpus tables, pgvector, retrieval, study record |
+| 3 | `20260914000100_seed_subjects.sql` | first subject catalogue (Cambridge codes) |
+| 4 | `20260914000200_ai_usage.sql` | per-student daily AI budget |
+| 5 | `20260914000300_map_legacy_subjects.sql` | subject names to codes, `corpus_code` |
+| 6 | `20260915000000_upload_routes.sql` | caps for the two upload routes |
+| 7 | `20260921000000_finish.sql` | saved marked papers, refunds, spaced revision, recall, readiness |
+| 8 | `20260922000000_edexcel.sql` | the switch to Edexcel: paper references, tiers, January, 9-1 grades, admin-only ingest, security fixes |
+| 9 | `20260922000100_question_order.sql` | a proper sort key for question numbers |
+| 10 | `20260922000200_grade_boundaries_paper_ref.sql` | boundaries keyed by paper reference |
+| 11 | `20260923000000_merge_further_pure_maths.sql` | merges a duplicate Further Pure Maths course |
+| 12 | `20260923000100_lettered_question_order.sql` | sort key for lettered roots like A1, B8 |
 
-Use `supabase db push` after linking the new project. If installing manually
-through SQL Editor, run every file once, in this exact order:
-
-1. `20260707000000_init.sql`
-2. `20260914000000_markwise.sql`
-3. `20260914000100_seed_subjects.sql`
-4. `20260914000200_ai_usage.sql`
-5. `20260914000300_map_legacy_subjects.sql`
-6. `20260915000000_upload_routes.sql`
-7. `20260921000000_finish.sql`
-8. `20260922000000_edexcel.sql`
-9. `20260922000100_question_order.sql`
-10. `20260922000200_grade_boundaries_paper_ref.sql`
-11. `20260923000000_merge_further_pure_maths.sql`
-12. `20260923000100_lettered_question_order.sql`
-
-Then run `supabase/tests/schema_contract.sql`. Manual SQL execution does not
-populate the CLI migration history; do not mix both methods without reconciling
-that history. Installing the schema does not deploy the six edge functions or
-load the corpus.
+Then run `supabase/tests/schema_contract.sql`. Don't mix manual runs with `db push` without
+reconciling the history. The schema alone doesn't deploy the edge functions or load papers.

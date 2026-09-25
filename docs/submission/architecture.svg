@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" width="1200" height="780" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; rx: 12; }
+      .zone { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1.5; rx: 18; }
+      .h { font-size: 17px; font-weight: 700; fill: #0f172a; }
+      .t { font-size: 13px; fill: #334155; }
+      .s { font-size: 12px; fill: #64748b; }
+      .z { font-size: 13px; font-weight: 700; fill: #64748b; letter-spacing: .06em; }
+      .line { stroke: #475569; stroke-width: 1.6; fill: none; marker-end: url(#arr); }
+      .dash { stroke: #94a3b8; stroke-width: 1.4; fill: none; stroke-dasharray: 6 5; marker-end: url(#arr); }
+      .lbl { font-size: 12px; fill: #475569; }
+    </style>
+  </defs>
+  <rect width="1200" height="780" fill="#ffffff"/>
+  <text x="40" y="44" class="h" font-size="22">Markwise system architecture</text>
+  <text x="40" y="68" class="s">No hardware or sensors: a web app, a managed database, serverless functions and an AI API. Solid arrows run on every request; dashed ones run offline.</text>
+
+  <!-- Student / browser -->
+  <rect x="40" y="100" width="300" height="440" class="zone"/>
+  <text x="60" y="126" class="z">STUDENT'S DEVICE</text>
+  <rect x="60" y="140" width="260" height="384" class="box"/>
+  <text x="78" y="168" class="h">Browser app</text>
+  <text x="78" y="190" class="t">Plain ES modules, no build step</text>
+  <text x="78" y="212" class="t">Hash router + 11 views:</text>
+  <text x="78" y="232" class="s">Planner, Calendar, Assistant, Mock exams,</text>
+  <text x="78" y="250" class="s">Mark a paper, Recall, Library, Progress,</text>
+  <text x="78" y="268" class="s">Settings, Your papers, Sign-in</text>
+  <text x="78" y="294" class="t">Service worker: opens offline</text>
+  <text x="78" y="316" class="t">Holds only the public Supabase key</text>
+  <text x="78" y="490" class="s">Hosted as static files on Vercel</text>
+  <text x="78" y="508" class="s">markwise-tau.vercel.app</text>
+
+  <!-- Supabase -->
+  <rect x="420" y="100" width="420" height="440" class="zone"/>
+  <text x="440" y="126" class="z">SUPABASE (MANAGED BACKEND)</text>
+  <rect x="440" y="140" width="380" height="84" class="box"/>
+  <text x="458" y="166" class="h">Auth</text>
+  <text x="458" y="188" class="t">Email + password, JWT per student</text>
+  <text x="458" y="208" class="s">Every table has row-level security</text>
+
+  <rect x="440" y="240" width="380" height="140" class="box"/>
+  <text x="458" y="266" class="h">Six edge functions (Deno)</text>
+  <text x="458" y="288" class="t">ask · mark · mock · mark-mock · mark-paper · ingest</text>
+  <text x="458" y="310" class="s">Only place the Gemini keys live</text>
+  <text x="458" y="328" class="s">Daily AI allowance: claim before, refund on failure</text>
+  <text x="458" y="346" class="s">Retrieval: exact lookup, then hybrid search,</text>
+  <text x="458" y="364" class="s">then pack verbatim sources into the prompt</text>
+
+  <rect x="440" y="396" width="380" height="128" class="box"/>
+  <text x="458" y="422" class="h">Postgres + pgvector</text>
+  <text x="458" y="444" class="t">papers · chunks (questions + mark schemes)</text>
+  <text x="458" y="462" class="t">grade_boundaries · subjects</text>
+  <text x="458" y="480" class="t">tasks · attempts · mocks · topic_mastery · recall</text>
+  <text x="458" y="504" class="s">match_chunks(): vector + full text fused with RRF</text>
+
+  <!-- Gemini -->
+  <rect x="920" y="240" width="240" height="140" class="box"/>
+  <text x="938" y="266" class="h">Google Gemini API</text>
+  <text x="938" y="288" class="t">Chat models (fallback chain)</text>
+  <text x="938" y="308" class="t">gemini-embedding-001</text>
+  <text x="938" y="328" class="s">768-dim vectors</text>
+  <text x="938" y="346" class="s">Free tier: per-key daily quota</text>
+
+  <!-- Offline pipeline -->
+  <rect x="40" y="580" width="1120" height="170" class="zone"/>
+  <text x="60" y="606" class="z">OFFLINE: CORPUS BUILD (NODE CLI, RUN BY THE TEAM)</text>
+  <rect x="60" y="620" width="200" height="110" class="box"/>
+  <text x="78" y="646" class="h">Pearson website</text>
+  <text x="78" y="668" class="t">qualifications.pearson.com</text>
+  <text x="78" y="688" class="s">Question papers, mark schemes,</text>
+  <text x="78" y="706" class="s">examiner reports, specifications</text>
+
+  <rect x="300" y="620" width="560" height="110" class="box"/>
+  <text x="318" y="646" class="h">ingest/ pipeline</text>
+  <text x="318" y="668" class="t">fetch-pearson → pdf.js text by position → regex parser → pair with scheme</text>
+  <text x="318" y="688" class="t">→ consistency check (gaps, printed totals) → model re-read only if it fails</text>
+  <text x="318" y="708" class="t">→ classify against the spec's topics → embed → write to Postgres</text>
+
+  <rect x="900" y="620" width="240" height="110" class="box"/>
+  <text x="918" y="646" class="h">Result (live)</text>
+  <text x="918" y="668" class="t">19 subjects, 352 papers</text>
+  <text x="918" y="688" class="t">11,522 question parts</text>
+  <text x="918" y="708" class="t">98.5% paired with a scheme</text>
+
+  <!-- arrows: request path -->
+  <path d="M320 200 H440" class="line"/>
+  <text x="344" y="192" class="lbl">sign in</text>
+  <path d="M320 300 H440" class="line"/>
+  <text x="336" y="292" class="lbl">AI requests</text>
+  <path d="M320 460 C360 460 380 460 440 460" class="line"/>
+  <text x="330" y="452" class="lbl">tasks, progress</text>
+  <path d="M630 380 V396" class="line"/>
+  <path d="M820 310 H920" class="line"/>
+  <text x="834" y="302" class="lbl">prompt + sources</text>
+
+  <!-- arrows: offline -->
+  <path d="M260 675 H300" class="dash"/>
+  <path d="M860 675 H900" class="dash"/>
+  <path d="M630 620 V524" class="dash"/>
+  <text x="640" y="566" class="lbl">service-role writes</text>
+  <path d="M800 620 C900 560 1010 480 1040 380" class="dash"/>
+  <text x="930" y="520" class="lbl">parse fallback, topics, embeddings</text>
+</svg>

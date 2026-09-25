@@ -1,0 +1,95 @@
+{
+  "generated": "2026-09-25T14:24:34.719Z",
+  "questions": 8,
+  "scored": 8,
+  "meanPctAwarded": {
+    "ideal": 100,
+    "partial": 41.9,
+    "none": 0
+  },
+  "fullMarksForIdealAnswer": 8,
+  "zeroForNoAnswer": 8,
+  "orderedIdealOverPartialOverNone": 8,
+  "results": [
+    {
+      "subject": "4PH1",
+      "paper": "E-4PH1_s24_qp_1PR",
+      "question": "11(b)",
+      "marks": 4,
+      "none": 0,
+      "ideal": 4,
+      "partial": 1,
+      "modelAnswer": "V2 = 130 x (5.0 / 8.4) = 77.38 cm3. 100 x 130 = p2 x 77.38. p2 = (100 x 130) / 77.38 = 170 kPa."
+    },
+    {
+      "subject": "4CH1",
+      "paper": "E-4CH1_s25_qp_1C",
+      "question": "9(c)",
+      "marks": 5,
+      "none": 0,
+      "ideal": 5,
+      "partial": 3,
+      "modelAnswer": "Ethane undergoes a substitution reaction with bromine in the presence of ultraviolet radiation to produce bromoethane and hydrogen bromide, and it does not decolourise bromine quickly. Ethene undergoes an addition reaction with bromine, decolourising it immediately to form 1,2-dibromoethane."
+    },
+    {
+      "subject": "4BI1",
+      "paper": "E-4BI1_s22_qp_1B",
+      "question": "2(b)(ii)",
+      "marks": 3,
+      "none": 0,
+      "ideal": 3,
+      "partial": 2,
+      "modelAnswer": "As temperature increases, the kinetic energy of the enzyme and substrate molecules increases so they move faster and collide more frequently, forming more enzyme-substrate complexes. Once the temperature exceeds the optimum, the enzymes denature, changing the shape of the active site so the substrate can no longer bind."
+    },
+    {
+      "subject": "4MA1",
+      "paper": "E-4MA1_s25_qp_2F",
+      "question": "23",
+      "marks": 4,
+      "none": 0,
+      "ideal": 4,
+      "partial": 1,
+      "modelAnswer": "Total parts = 3 + 4 + 5 = 12. One share = 240 / 12 = 20. Pau has 3 x 20 = 60, Sam has 4 x 20 = 80, Tia has 5 x 20 = 100. After giving £10 each to Pau, Pau has 60 + 10 + 10 = 80, Sam has 80 - 10 = 70, Tia has 100 - 10 = 90. The ratio is 80 : 70 : 90, which simplifies to 8 : 7 : 9."
+    },
+    {
+      "subject": "4EC1",
+      "paper": "E-4EC1_s22_qp_01R",
+      "question": "1(h)",
+      "marks": 3,
+      "none": 0,
+      "ideal": 3,
+      "partial": 2,
+      "modelAnswer": "One reason for Unilever's trend to reduce non-recyclable plastic packaging is to improve its corporate social responsibility. As consumers become more environmentally conscious, they prefer to buy goods from sustainable companies, which helps Unilever protect its brand image and maintain sales of its consumer goods."
+    },
+    {
+      "subject": "4GE1",
+      "paper": "E-4GE1_s24_qp_01R",
+      "question": "3(d)",
+      "marks": 3,
+      "none": 0,
+      "ideal": 3,
+      "partial": 1,
+      "modelAnswer": "Some areas have high quality building infrastructure (1) which reduces the numbers of building collapse (1) which reduces risk of death/injury (1)."
+    },
+    {
+      "subject": "4BS1",
+      "paper": "E-4BS1_s21_qp_02",
+      "question": "2(c)",
+      "marks": 3,
+      "none": 0,
+      "ideal": 3,
+      "partial": 1,
+      "modelAnswer": "Businesses can fail because of cash flow problems, which may happen if the business has a greater outflow than inflow, leading to potential problems paying employees and suppliers."
+    },
+    {
+      "subject": "4CP0",
+      "paper": "E-4CP0_s22_qp_02",
+      "question": "1(g)",
+      "marks": 4,
+      "none": 0,
+      "ideal": 4,
+      "partial": 1,
+      "modelAnswer": "if letter < stored_letter:\n    print(letter, stored_letter, 'comes earlier in the alphabet')\nelif letter > stored_letter:\n    print(letter, stored_letter, 'comes later in the alphabet')\nelse:\n    print(letter, stored_letter, 'is the same letter')"
+    }
+  ]
+}

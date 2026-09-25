@@ -1,9 +1,4 @@
-/**
- * Database writes for the ingestion pipeline.
- *
- * Uses the service-role key, so RLS does not apply. This is the only place in
- * the project that writes to the corpus tables.
- */
+// Corpus writes. Service-role key, so RLS doesn't apply here.
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SERVICE_KEY } from "./config.js";
@@ -17,10 +12,7 @@ export async function getSubject(code) {
   return data;
 }
 
-/**
- * The board a code belongs to, read from its prefix. Cambridge codes are bare
- * digits; everyone else is prefixed so the two never collide.
- */
+// Board from the code prefix. Cambridge codes are bare digits.
 const BOARD_PREFIX = { "E-": "Edexcel", "A-": "AQA", "O-": "OCR", "X-": "School" };
 
 function boardFor(code) {
@@ -30,12 +22,7 @@ function boardFor(code) {
   return /^\d{4}$/.test(code) ? "Cambridge" : "Other";
 }
 
-/**
- * Ensure a subject row exists so papers can reference it.
- *
- * Auto-created rows are named after their code, which is ugly in the UI: the
- * caller is told so it can suggest a proper name.
- */
+/** Make sure a subject row exists. Auto-created rows are named after their code, so warn. */
 export async function ensureSubject(code, name = null) {
   const existing = await getSubject(code);
   if (existing) return existing;
@@ -50,13 +37,8 @@ export async function ensureSubject(code, name = null) {
   return data;
 }
 
-/**
- * `.eq(col, null)` does not mean "is null" in PostgREST: it becomes
- * `col=eq.null`, which matches nothing. Every lookup on a column that can be
- * empty (a syllabus has no session, a paper may have no year) must go through
- * `.is()` instead. The old lookup used `.eq` for all of them, so it never found
- * an existing row, and every re-ingest inserted a duplicate paper.
- */
+// PostgREST's .eq(col, null) matches nothing; nullable columns need .is().
+// Using .eq everywhere made every re-ingest insert a duplicate paper.
 function matchOrNull(query, column, value) {
   return value === null || value === undefined || value === "" ? query.is(column, null) : query.eq(column, value);
 }
@@ -86,12 +68,8 @@ async function chunkCount(paperId) {
 }
 
 /**
- * Find or create a paper row. Returns { paper, unchanged }.
- *
- * `unchanged` is true only when the same file set (by hash) was ingested
- * COMPLETELY: the hash is written last, by `markIngested`, and the paper must
- * also have chunks. Writing the hash up front, as this used to, meant that a run
- * which failed halfway left a paper marked as done and every retry skipped it.
+ * Find or create a paper row. `unchanged` is only true when the same files were
+ * ingested completely: the hash is written last, by markIngested.
  */
 export async function upsertPaper(meta, { title, sha256, pages, sourceUrl = null, force = false }) {
   const existing = await findPaper(meta);
@@ -132,8 +110,8 @@ export async function upsertPaper(meta, { title, sha256, pages, sourceUrl = null
 /** Record that a paper was ingested in full. The last write of a successful run. */
 export async function markIngested(paperId, sha256, { totalMarks = null } = {}) {
   const patch = { sha256, ingested_at: new Date().toISOString() };
-  // The total the paper prints for itself. Marking uses it as the denominator,
-  // so a question the parser lost cannot inflate a student's percentage.
+  // The printed total is the marking denominator, so a lost question can't
+  // inflate a student's percentage.
   if (totalMarks) patch.total_marks = totalMarks;
   const { error } = await db.from("papers").update(patch).eq("id", paperId);
   if (error) throw new Error(`Could not mark the paper as ingested: ${error.message}`);
@@ -152,14 +130,9 @@ export async function insertChunks(rows, batch = 100) {
 }
 
 /**
- * Replace a paper's question chunks WITHOUT changing the ids of the ones that
- * stay.
- *
- * Deleting every chunk and inserting fresh ones, as re-ingest used to, gave each
- * question a new id. Students' recall schedules cascade-delete with the chunk,
- * their marked attempts lose their link to it, and saved mocks point at ids
- * that no longer exist. So rows are upserted on (paper, kind, question number),
- * and only questions that are genuinely gone are removed.
+ * Replace a paper's question chunks but keep the ids of the ones that stay.
+ * Recall schedules, attempts and saved mocks all point at chunk ids, so rows
+ * are upserted on (paper, kind, question) and only vanished ones are deleted.
  */
 export async function replaceQuestionChunks(paperId, kind, rows, batch = 100) {
   let written = 0;

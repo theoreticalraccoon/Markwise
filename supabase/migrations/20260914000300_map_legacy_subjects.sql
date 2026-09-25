@@ -1,21 +1,7 @@
--- ============================================================================
--- Markwise: migrate the original tracker's subject NAMES to syllabus CODES.
---
--- The old app stored `tasks.subject` and `profiles.subjects` as display names
--- ("Physics", "Extra Maths"). Everything in Markwise keys on the Cambridge
--- syllabus code, because that is what past-paper filenames carry and what
--- retrieval filters on. Without this, existing accounts land on the subject
--- picker again and their old tasks show under a name nothing else recognises.
---
--- It also introduces `subjects.corpus_code`: the subject whose past papers a
--- course should be answered from. A school's "Extra Maths" or "Single Science
--- Physics" class has no syllabus of its own, but the questions a student needs
--- are 0580's and 0625's. Without this pointer those students would have a
--- working planner and a permanently empty AI.
---
--- Safe to run more than once: every statement is scoped to rows that still
--- hold a legacy name.
--- ============================================================================
+-- Move the homework tracker's subject NAMES ("Physics") to syllabus CODES, so
+-- existing accounts keep their tasks. Also adds subjects.corpus_code: which
+-- subject's papers a course without its own syllabus ("Extra Maths") answers
+-- from. Idempotent: only touches rows that still hold a legacy name.
 
 -- ---------------------------------------------------------------------------
 -- 1. Courses the original app listed that have no syllabus code of their own.
@@ -153,9 +139,7 @@ update public.tuition_sessions s
 --    another subject's papers correctly shows as grounded.
 -- ---------------------------------------------------------------------------
 
--- `create or replace view` can only append columns, not insert one into the
--- middle of the existing column list, so the view is dropped and rebuilt.
--- Nothing depends on it but the client's select, which is re-granted below.
+-- Dropped and rebuilt (views can only append columns); select is re-granted below.
 drop view if exists public.corpus_coverage;
 
 create view public.corpus_coverage

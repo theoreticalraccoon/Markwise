@@ -1,23 +1,8 @@
 /**
- * Per-user daily budget for AI routes.
- *
- * A call is reserved BEFORE the model runs, so a user who is out of allowance
- * costs the project nothing, and the counter lives in Postgres because edge
- * functions are stateless and scale to many isolates.
- *
- * Reserving up front means a call that then fails inside Gemini has already
- * been charged. `release` gives it back, so a 502 does not eat a student's
- * allowance for an answer they never received.
- *
- * Two properties this module is careful about, both of which the first version
- * got wrong:
- *
- *  - A claim returns the id of the row it wrote, and a release deletes exactly
- *    that row. Releasing "the newest row for this route" could delete a charge
- *    that belonged to a different, successful request, or refund a call that
- *    was never charged because the claim itself had failed open.
- *  - The id is kept on the request's own Caller object, so concurrent requests
- *    in one isolate can never release each other's claims.
+ * Per-user daily AI budget. A call is claimed before the model runs and
+ * released if it fails. The claim returns its row id and release deletes that
+ * exact row, kept on this request's Caller, so concurrent requests can't
+ * refund each other.
  */
 
 import { adminClient, type Caller } from "./db.ts";
@@ -36,8 +21,7 @@ export async function claim(user: Caller, route: string): Promise<void> {
     p_route: route,
   });
   if (error) {
-    // Accounting must never take the feature down: log and let the call run.
-    // There is no row to refund, so nothing is recorded for `release`.
+    // Accounting must never take the feature down. Nothing to refund later.
     console.error("claim_ai_call_id failed:", error.message);
     user.claims[route] = null;
     return;
@@ -46,12 +30,7 @@ export async function claim(user: Caller, route: string): Promise<void> {
   user.claims[route] = data as string;
 }
 
-/**
- * Hand back this request's reservation after its work failed.
- *
- * Never throws: a failed refund is an accounting inconvenience, and it must
- * not replace the real error the caller is already returning.
- */
+/** Refund this request's claim after a failure. Never throws. */
 export async function release(user: Caller, route: string): Promise<void> {
   const id = user.claims[route];
   if (!id) return;

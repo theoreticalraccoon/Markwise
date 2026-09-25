@@ -1,15 +1,6 @@
-/**
- * Progress: what the marking history actually says about this student.
- *
- * Every number here comes from marks awarded against real mark schemes, which
- * is why it is worth showing: a topic mastery bar built on a chatbot's opinion
- * of your answer would be noise, and a bar built on the student's own "I knew
- * that" would be worse. Recall practice is deliberately absent from these
- * figures for that reason.
- *
- * Weak topics link straight back into the tools that fix them: a targeted
- * mock, recall practice, or a revision task on the planner.
- */
+// Progress: every number comes from marks awarded against real schemes.
+// Recall self-ratings are left out on purpose. Weak topics link to the tools
+// that fix them.
 
 import { esc, on } from "../ui/dom.js";
 import { toast, emptyState, skeleton, openModal } from "../ui/feedback.js";
@@ -28,8 +19,7 @@ let subject = null;
 
 export async function render(container, { query = {} } = {}) {
   root = container;
-  // Attempts are recorded against the corpus subject, so the filter has to
-  // use the same code the marking route wrote.
+  // Attempts are stored under the corpus subject, so filter by that.
   subject = query.subject ? corpusCode(query.subject) : (subject ?? null);
 
   container.innerHTML = `
@@ -252,13 +242,7 @@ function gradeChart({ subject: code, points }) {
     </section>`;
 }
 
-/**
- * Readiness, as three honest numbers rather than one invented one.
- *
- * A single "you are 72% ready" score would be a fiction: nothing in the data
- * supports that precision. Coverage, accuracy and mocks sat are each real, and
- * a student can see which one is the weak leg.
- */
+/** Readiness as three real numbers (coverage, accuracy, mocks sat), not one made-up score. */
 function readinessCard(r) {
   const coverage = r.topics_total ? Math.round((r.topics_seen / r.topics_total) * 100) : 0;
   const strong = r.topics_total ? Math.round((r.topics_strong / r.topics_total) * 100) : 0;
@@ -298,13 +282,7 @@ function readinessCard(r) {
     </section>`;
 }
 
-/**
- * Weekly percentage as an inline SVG.
- *
- * Inline rather than a charting library: it is nine lines of path arithmetic,
- * and adding a dependency to a no-build app to draw one polyline would be a
- * poor trade.
- */
+/** Weekly percentage as an inline SVG polyline; not worth a chart library. */
 function sparkline(series) {
   const W = 640;
   const H = 120;

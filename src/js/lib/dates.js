@@ -93,21 +93,9 @@ export function minutesToHuman(mins) {
 }
 
 /**
- * When an exam series starts.
- *
- * `profiles.exam_session` is free text ("Jun 2027", "May/June 2027", "Nov
- * 2026"), because that is how a student says it. Pearson Edexcel International
- * GCSE sits January, May/June and October/November, and the papers begin in
- * the first weeks of the series' first month: early January, early May, early
- * October. A student who writes "June" means the summer series, which STARTS in
- * May, so it is anchored there. The old anchor was the first of the month
- * named, which told a June candidate the exams were a month further away than
- * they are, and once May began said they had "started or passed" while the
- * papers were still ahead of them.
- *
- * Only the first month of a range is read, so "May/June" is May and "Oct/Nov"
- * is October. Returns null for anything it cannot read, and the caller shows
- * nothing rather than guessing.
+ * When an exam series starts, from free text like "Jun 2027" or "Oct/Nov 2026".
+ * Edexcel sits January, May/June and October/November, so "June" anchors to
+ * early May. Only the first month of a range counts. Returns null if unreadable.
  */
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 

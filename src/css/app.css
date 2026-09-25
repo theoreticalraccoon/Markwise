@@ -1,11 +1,5 @@
-/* ===========================================================================
-   Markwise
-   ---------------------------------------------------------------------------
-   The visual language is an exam script: off-white paper, a blue pen for the
-   student's own work, a red pen for anything an examiner would write. Marks
-   earned are green ticks, marks lost are red crosses, because that is what
-   they look like on a real returned paper.
-   =========================================================================== */
+/* Markwise. Styled like a marked exam script: off-white paper, blue pen for
+   the student, red pen for the examiner, green ticks and red crosses. */
 
 :root {
   color-scheme: light;
@@ -274,8 +268,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--pen); outline: n
 .brand-name span { color: var(--pen); }
 .brand-name.lg { font-size: 25px; }
 
-/* The sign-in lockup has room for the full mark, where the ruled lines and
-   the ringed grade are legible. The sidebar uses the simplified one. */
+/* Full logo on sign-in, simplified one in the sidebar. */
 .brand-lockup { display: flex; align-items: center; gap: 10px; margin: -4px 0 4px -6px; }
 .brand-lockup img { display: block; flex: none; }
 
@@ -325,10 +318,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--pen); outline: n
   padding: 16px;
   box-shadow: var(--shadow);
 }
-/* Stacked cards need the gap; the board is a grid and already has one. Left in
-   for both, the margin pushed every card except the first down by 14px
-   which is exactly why the first subject card was taller than its neighbours
-   and sat higher than them. */
+/* Only stacked cards need this gap; on the grid it misaligned the first card. */
 .card + .card { margin-top: 14px; }
 .board .card + .card { margin-top: 0; }
 .card > header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -337,11 +327,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--pen); outline: n
 .card-actions { display: flex; gap: 9px; margin-top: 14px; }
 
 /* the coloured spine that shows a subject's pressure at a glance */
-/* The spine is drawn as a bar inside the card rather than as a left border,
-   because a border can only be one colour. A subject with both homework and
-   an assessment needs both pens on it, blue over red, and the old inset
-   shadow trick rendered a 1px sliver hidden behind the border, so those cards
-   looked identical to assessment-only ones. */
+/* The spine is a bar, not a border, so one card can show blue over red. */
 .card.spine-hw,
 .card.spine-as,
 .card.spine-both,
@@ -366,8 +352,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--pen); outline: n
 .card.spine-both::before { background: linear-gradient(var(--pen) 0 50%, var(--mark) 50% 100%); }
 .card.spine-none::before { background: var(--line); }
 
-/* Cards stretch to the row height rather than hugging their content, so a
-   subject with one task and one with three still line up. */
+/* Cards stretch to the row height so neighbours line up. */
 .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
 .card-group + .card-group { margin-top: 12px; }
 
@@ -710,12 +695,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--pen); outline: n
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
-/* ============================================================ accessibility =
-
-   The skip link is the one control that must work before anything else has
-   rendered, so it lives in index.html and is styled here rather than being
-   built by a view.
-   ========================================================================== */
+/* ---- accessibility. The skip link lives in index.html so it works before any view renders. */
 
 .skip-link {
   position: absolute;
@@ -739,8 +719,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--pen); outline: n
 
 #outlet:focus { outline: none; }
 
-/* A visible focus ring everywhere, without the permanent outline that mouse
-   users would otherwise see on click. */
+/* Focus ring for keyboard users, not on mouse click. */
 :focus-visible {
   outline: 2px solid var(--pen);
   outline-offset: 2px;
@@ -807,8 +786,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--pen); outline: n
 .cal-chip.revision { background: var(--mid-soft); color: var(--mid); }
 .cal-more { font-size: 10.5px; color: var(--muted); }
 
-/* The heat scale. Four steps rather than a continuous gradient: a student
-   needs "heavier than that day", not a precise reading. */
+/* Workload heat: four steps, not a gradient. */
 .cal-day.heat-1 { background: color-mix(in srgb, var(--pen-soft) 45%, var(--surface)); }
 .cal-day.heat-2 { background: color-mix(in srgb, var(--pen-soft) 80%, var(--surface)); }
 .cal-day.heat-3 { background: color-mix(in srgb, var(--pen) 16%, var(--surface)); }
@@ -935,8 +913,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--pen); outline: n
   line-height: 1.6;
 }
 
-/* An indeterminate bar, for work whose length the client genuinely cannot
-   know: the server marks in batches and reports once, at the end. */
+/* Indeterminate bar: the server only reports when marking is done. */
 .progress-bar.indeterminate span {
   width: 35%;
   animation: slide 1.5s ease-in-out infinite;
@@ -951,13 +928,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--pen); outline: n
 .chat-foot { font-size: 12.5px; margin-top: 18px; }
 .msg-note { font-size: 13px; color: var(--muted); font-style: italic; margin: 0 0 6px; }
 
-/* =================================================================== print =
-
-   Three screens are worth printing: a mock paper to sit away from a screen,
-   and either marked result to hand to a teacher or a tutor. Everything that
-   is navigation or interaction is dropped, and the collapsed details are
-   forced open, because a printed page cannot be expanded.
-   ========================================================================== */
+/* ---- print: mock papers and marked results. Navigation is dropped and
+   collapsed details forced open. */
 
 @media print {
   :root { --bg: #fff; --surface: #fff; --surface-2: #fff; }

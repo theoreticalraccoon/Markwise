@@ -1,10 +1,5 @@
--- ============================================================================
--- Markwise: retrieval-grounded iGCSE assistant.
--- Adds the exam corpus (papers, mark schemes, syllabuses), the vector index
--- used for RAG, and the per-user study record built on top of it.
---
--- Safe to run more than once. Run AFTER 20260707000000_init.sql.
--- ============================================================================
+-- Markwise: the exam corpus, the vector index for RAG, and each student's
+-- study record. Idempotent. Runs after 20260707000000_init.sql.
 
 create extension if not exists pgcrypto;
 create extension if not exists vector;
@@ -98,9 +93,8 @@ create table if not exists public.papers (
 
 create index if not exists papers_subject_idx on public.papers (subject_code, kind, year desc);
 
--- The retrievable unit. One row per question part (or syllabus section), with
--- its mark scheme denormalised alongside so a single hit answers "what was
--- asked" AND "what earns the marks" without a second lookup.
+-- One row per question part or syllabus section. The mark scheme sits on the
+-- same row, so one hit answers both "what was asked" and "what earns marks".
 create table if not exists public.chunks (
   id            uuid primary key default gen_random_uuid(),
   paper_id      uuid not null references public.papers (id) on delete cascade,
@@ -183,10 +177,8 @@ create policy "gb_read" on public.grade_boundaries for select to authenticated u
 -- ---------------------------------------------------------------------------
 -- 3. Retrieval: hybrid (vector + full-text) fused with Reciprocal Rank Fusion.
 --
--- Pure vector search misses exact identifiers ("0625_s19_qp_42", "Q4(b)");
--- pure keyword search misses paraphrase ("why does it slow down" → friction).
--- RRF needs no score normalisation between the two, which is why it is used
--- instead of a weighted sum of cosine distance and ts_rank.
+-- Vectors miss exact identifiers ("Q4(b)"); keywords miss paraphrase ("why does
+-- it slow down" -> friction). RRF fuses the two ranks without normalising scores.
 -- ---------------------------------------------------------------------------
 
 create or replace function public.match_chunks(
@@ -269,9 +261,7 @@ as $fn$
   limit match_count;
 $fn$;
 
--- The shape every retrieval function returns. Deliberately excludes the
--- embedding column: a 768-float vector per row would dominate the response
--- payload and none of the callers need it back.
+-- What retrieval returns. No embedding column: callers never need 768 floats back.
 do $ct$
 begin
   if not exists (select 1 from pg_type where typname = 'chunk_result') then
@@ -577,9 +567,7 @@ grant execute on function public.predict_grade to authenticated;
 --    honestly which subjects the AI can actually ground answers in.
 -- ---------------------------------------------------------------------------
 
--- Dropped and rebuilt rather than replaced: a later migration widens this
--- view, and `create or replace view` cannot add or remove a column anywhere
--- but the end of the list, so re-running the pair in either order would fail.
+-- Dropped and rebuilt: `create or replace view` can only append columns.
 drop view if exists public.corpus_coverage;
 
 create view public.corpus_coverage

@@ -1,0 +1,409 @@
+=== 4AC1
+ok  pdfs\4AC1\E-4AC1_s21_qp_01.pdf     parts= 30 questions=18/18 marks=100/100
+ok  pdfs\4AC1\E-4AC1_s21_qp_02.pdf     parts=  8 questions=2/2 marks=50/50
+ok  pdfs\4AC1\E-4AC1_s22_qp_01.pdf     parts= 35 questions=18/18 marks=100/100
+BAD pdfs\4AC1\E-4AC1_s22_qp_01R.pdf    parts= 18 questions=11/11 marks=41/100 OFF Q11:31/5 Q12:0/5 Q13:0/5 Q14:0/15 Q15:0/15 Q16:0/15 Q17:0/15 Q18:0/15
+ok  pdfs\4AC1\E-4AC1_s22_qp_02.pdf     parts= 10 questions=2/2 marks=50/50
+ok  pdfs\4AC1\E-4AC1_s22_qp_02R.pdf    parts=  8 questions=2/2 marks=50/50
+BAD pdfs\4AC1\E-4AC1_s23_qp_01.pdf     parts= 36 questions=17/18 marks=95/100 MISSING 13 OFF Q13:0/5
+ok  pdfs\4AC1\E-4AC1_s23_qp_01R.pdf    parts= 34 questions=18/18 marks=100/100
+ok  pdfs\4AC1\E-4AC1_s23_qp_02.pdf     parts=  8 questions=2/2 marks=50/50
+ok  pdfs\4AC1\E-4AC1_s23_qp_02R.pdf    parts= 11 questions=2/2 marks=50/50
+ok  pdfs\4AC1\E-4AC1_s24_qp_01.pdf     parts= 28 questions=18/18 marks=100/100
+ok  pdfs\4AC1\E-4AC1_s24_qp_01R.pdf    parts= 32 questions=18/18 marks=100/100
+ok  pdfs\4AC1\E-4AC1_s24_qp_02.pdf     parts=  7 questions=2/2 marks=50/50
+ok  pdfs\4AC1\E-4AC1_s24_qp_02R.pdf    parts=  7 questions=2/2 marks=50/50
+ok  pdfs\4AC1\E-4AC1_s25_qp_01.pdf     parts= 30 questions=18/18 marks=100/100
+ok  pdfs\4AC1\E-4AC1_s25_qp_01R.pdf    parts= 29 questions=18/18 marks=100/100
+ok  pdfs\4AC1\E-4AC1_s25_qp_02.pdf     parts=  7 questions=2/2 marks=50/50
+ok  pdfs\4AC1\E-4AC1_s25_qp_02R.pdf    parts=  8 questions=2/2 marks=50/50
+
+16 of 18 papers read completely
+=== 4BI1
+ok  pdfs\4BI1\E-4BI1_s21_qp_1B.pdf     parts= 46 questions=11/11 marks=110/110
+ok  pdfs\4BI1\E-4BI1_s21_qp_2B.pdf     parts= 38 questions=7/7 marks=70/70
+ok  pdfs\4BI1\E-4BI1_s22_qp_1B.pdf     parts= 43 questions=10/10 marks=110/110
+ok  pdfs\4BI1\E-4BI1_s22_qp_1BR.pdf    parts= 48 questions=10/10 marks=110/110
+ok  pdfs\4BI1\E-4BI1_s22_qp_2B.pdf     parts= 30 questions=6/6 marks=70/70
+ok  pdfs\4BI1\E-4BI1_s22_qp_2BR.pdf    parts= 31 questions=7/7 marks=70/70
+ok  pdfs\4BI1\E-4BI1_s23_qp_1B.pdf     parts= 47 questions=9/9 marks=110/110
+ok  pdfs\4BI1\E-4BI1_s23_qp_1BR.pdf    parts= 51 questions=10/10 marks=110/110
+ok  pdfs\4BI1\E-4BI1_s23_qp_2B.pdf     parts= 32 questions=6/6 marks=70/70
+ok  pdfs\4BI1\E-4BI1_s23_qp_2BR.pdf    parts= 28 questions=6/6 marks=70/70
+ok  pdfs\4BI1\E-4BI1_s24_qp_1B.pdf     parts= 45 questions=10/10 marks=110/110
+ok  pdfs\4BI1\E-4BI1_s24_qp_1BR.pdf    parts= 46 questions=10/10 marks=110/110
+ok  pdfs\4BI1\E-4BI1_s24_qp_2B.pdf     parts= 32 questions=6/6 marks=70/70
+ok  pdfs\4BI1\E-4BI1_s24_qp_2BR.pdf    parts= 31 questions=6/6 marks=70/70
+ok  pdfs\4BI1\E-4BI1_s25_qp_1B.pdf     parts= 46 questions=10/10 marks=110/110
+ok  pdfs\4BI1\E-4BI1_s25_qp_1BR.pdf    parts= 49 questions=10/10 marks=110/110
+ok  pdfs\4BI1\E-4BI1_s25_qp_2B.pdf     parts= 30 questions=6/6 marks=70/70
+ok  pdfs\4BI1\E-4BI1_s25_qp_2BR.pdf    parts= 31 questions=6/6 marks=70/70
+
+18 of 18 papers read completely
+=== 4BS1
+ok  pdfs\4BS1\E-4BS1_s21_qp_01.pdf     parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s21_qp_02.pdf     parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s22_qp_01.pdf     parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s22_qp_01R.pdf    parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s22_qp_02.pdf     parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s22_qp_02R.pdf    parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s23_qp_01.pdf     parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s23_qp_01R.pdf    parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s23_qp_02.pdf     parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s23_qp_02R.pdf    parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s24_qp_01.pdf     parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s24_qp_01R.pdf    parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s24_qp_02.pdf     parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s24_qp_02R.pdf    parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s25_qp_01.pdf     parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s25_qp_01R.pdf    parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s25_qp_02.pdf     parts= 26 questions=4/4 marks=80/80
+ok  pdfs\4BS1\E-4BS1_s25_qp_02R.pdf    parts= 26 questions=4/4 marks=80/80
+
+18 of 18 papers read completely
+=== 4CH1
+ok  pdfs\4CH1\E-4CH1_s21_qp_1C.pdf     parts= 54 questions=10/10 marks=110/110
+ok  pdfs\4CH1\E-4CH1_s21_qp_2C.pdf     parts= 43 questions=7/7 marks=70/70
+ok  pdfs\4CH1\E-4CH1_s22_qp_1C.pdf     parts= 57 questions=10/10 marks=110/110
+ok  pdfs\4CH1\E-4CH1_s22_qp_1CR.pdf    parts= 57 questions=11/11 marks=110/110
+ok  pdfs\4CH1\E-4CH1_s22_qp_2C.pdf     parts= 39 questions=7/7 marks=70/70
+ok  pdfs\4CH1\E-4CH1_s22_qp_2CR.pdf    parts= 40 questions=7/7 marks=70/70
+ok  pdfs\4CH1\E-4CH1_s23_qp_1C.pdf     parts= 55 questions=10/10 marks=110/110
+ok  pdfs\4CH1\E-4CH1_s23_qp_1CR.pdf    parts= 59 questions=11/11 marks=110/110
+ok  pdfs\4CH1\E-4CH1_s23_qp_2C.pdf     parts= 41 questions=7/7 marks=70/70
+ok  pdfs\4CH1\E-4CH1_s23_qp_2CR.pdf    parts= 38 questions=7/7 marks=70/70
+ok  pdfs\4CH1\E-4CH1_s24_qp_1C.pdf     parts= 56 questions=10/10 marks=110/110
+ok  pdfs\4CH1\E-4CH1_s24_qp_1CR.pdf    parts= 57 questions=12/12 marks=110/110
+ok  pdfs\4CH1\E-4CH1_s24_qp_2C.pdf     parts= 37 questions=7/7 marks=70/70
+ok  pdfs\4CH1\E-4CH1_s24_qp_2CR.pdf    parts= 38 questions=7/7 marks=70/70
+ok  pdfs\4CH1\E-4CH1_s25_qp_1C.pdf     parts= 49 questions=10/10 marks=110/110
+ok  pdfs\4CH1\E-4CH1_s25_qp_1CR.pdf    parts= 55 questions=11/11 marks=110/110
+ok  pdfs\4CH1\E-4CH1_s25_qp_2C.pdf     parts= 38 questions=6/6 marks=70/70
+ok  pdfs\4CH1\E-4CH1_s25_qp_2CR.pdf    parts= 38 questions=7/7 marks=70/70
+
+18 of 18 papers read completely
+=== 4CM1
+ok  pdfs\4CM1\E-4CM1_s21_qp_01.pdf     parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s21_qp_02.pdf     parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s22_qp_01.pdf     parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s22_qp_01R.pdf    parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s22_qp_02.pdf     parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s22_qp_02R.pdf    parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s23_qp_01.pdf     parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s23_qp_01R.pdf    parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s23_qp_02.pdf     parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s23_qp_02R.pdf    parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s24_qp_01.pdf     parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s24_qp_01R.pdf    parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s24_qp_02.pdf     parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s24_qp_02R.pdf    parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s25_qp_01.pdf     parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s25_qp_01R.pdf    parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s25_qp_02.pdf     parts= 27 questions=4/4 marks=80/80
+ok  pdfs\4CM1\E-4CM1_s25_qp_02R.pdf    parts= 27 questions=4/4 marks=80/80
+
+18 of 18 papers read completely
+=== 4CP0
+ok  pdfs\4CP0\E-4CP0_s21_qp_01.pdf     parts= 45 questions=6/6 marks=80/80
+ok  pdfs\4CP0\E-4CP0_s21_qp_02.pdf     parts= 22 questions=5/5 marks=80/80
+ok  pdfs\4CP0\E-4CP0_s22_qp_01.pdf     parts= 45 questions=6/6 marks=80/80
+ok  pdfs\4CP0\E-4CP0_s22_qp_02.pdf     parts= 24 questions=6/6 marks=80/80
+ok  pdfs\4CP0\E-4CP0_s23_qp_01.pdf     parts= 41 questions=6/6 marks=80/80
+ok  pdfs\4CP0\E-4CP0_s23_qp_2A.pdf     parts= 24 questions=6/6 marks=80/80
+ok  pdfs\4CP0\E-4CP0_s24_qp_01.pdf     parts= 41 questions=6/6 marks=80/80
+ok  pdfs\4CP0\E-4CP0_s24_qp_02.pdf     parts= 25 questions=6/6 marks=80/80
+ok  pdfs\4CP0\E-4CP0_s25_qp_01.pdf     parts= 36 questions=6/6 marks=80/80
+
+9 of 9 papers read completely
+=== 4EA1
+ok  pdfs\4EA1\E-4EA1_s21_qp_01.pdf     parts=  7 questions=7/7 marks=135/90
+ok  pdfs\4EA1\E-4EA1_s21_qp_02.pdf     parts=  4 questions=4/4 marks=120/60
+ok  pdfs\4EA1\E-4EA1_s22_qp_01.pdf     parts=  7 questions=7/7 marks=135/90
+ok  pdfs\4EA1\E-4EA1_s22_qp_01R.pdf    parts=  7 questions=7/7 marks=135/90
+ok  pdfs\4EA1\E-4EA1_s22_qp_02.pdf     parts=  4 questions=4/4 marks=120/60
+ok  pdfs\4EA1\E-4EA1_s22_qp_02R.pdf    parts=  4 questions=4/4 marks=120/60
+ok  pdfs\4EA1\E-4EA1_s23_qp_01R.pdf    parts=  7 questions=7/7 marks=135/90
+ok  pdfs\4EA1\E-4EA1_s23_qp_02.pdf     parts=  4 questions=4/4 marks=120/60
+ok  pdfs\4EA1\E-4EA1_s23_qp_02R.pdf    parts=  4 questions=4/4 marks=120/60
+ok  pdfs\4EA1\E-4EA1_s24_qp_01.pdf     parts=  7 questions=7/7 marks=135/90
+ok  pdfs\4EA1\E-4EA1_s24_qp_01R.pdf    parts=  7 questions=7/7 marks=135/90
+ok  pdfs\4EA1\E-4EA1_s24_qp_02.pdf     parts=  4 questions=4/4 marks=120/60
+ok  pdfs\4EA1\E-4EA1_s24_qp_02R.pdf    parts=  4 questions=4/4 marks=120/60
+ok  pdfs\4EA1\E-4EA1_s25_qp_01.pdf     parts=  7 questions=7/7 marks=135/90
+ok  pdfs\4EA1\E-4EA1_s25_qp_01R.pdf    parts=  7 questions=7/7 marks=135/90
+ok  pdfs\4EA1\E-4EA1_s25_qp_02.pdf     parts=  4 questions=4/4 marks=120/60
+ok  pdfs\4EA1\E-4EA1_s25_qp_02R.pdf    parts=  4 questions=4/4 marks=120/60
+
+17 of 17 papers read completely
+=== 4EB1
+ok  pdfs\4EB1\E-4EB1_s21_qp_01.pdf     parts= 11 questions=11/11 marks=160/100
+ok  pdfs\4EB1\E-4EB1_s22_qp_01.pdf     parts= 11 questions=11/11 marks=160/100
+ok  pdfs\4EB1\E-4EB1_s22_qp_01R.pdf    parts= 11 questions=11/11 marks=160/100
+ok  pdfs\4EB1\E-4EB1_s23_qp_01.pdf     parts= 11 questions=11/11 marks=160/100
+ok  pdfs\4EB1\E-4EB1_s23_qp_01R.pdf    parts= 11 questions=11/11 marks=160/100
+ok  pdfs\4EB1\E-4EB1_s24_qp_01.pdf     parts= 11 questions=11/11 marks=160/100
+ok  pdfs\4EB1\E-4EB1_s24_qp_01R.pdf    parts= 11 questions=11/11 marks=160/100
+ok  pdfs\4EB1\E-4EB1_s25_qp_01.pdf     parts= 11 questions=11/11 marks=160/100
+ok  pdfs\4EB1\E-4EB1_s25_qp_01R.pdf    parts= 11 questions=11/11 marks=160/100
+
+9 of 9 papers read completely
+=== 4EC1
+ok  pdfs\4EC1\E-4EC1_s21_qp_01.pdf     parts= 25 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s21_qp_02.pdf     parts= 23 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s22_qp_01.pdf     parts= 25 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s22_qp_01R.pdf    parts= 25 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s22_qp_02.pdf     parts= 23 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s22_qp_02R.pdf    parts= 23 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s23_qp_01.pdf     parts= 25 questions=4/4 marks=80/80
+BAD pdfs\4EC1\E-4EC1_s23_qp_01R.pdf    parts= 24 questions=4/4 marks=79/80 OFF Q2:19/20
+ok  pdfs\4EC1\E-4EC1_s23_qp_02.pdf     parts= 23 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s23_qp_02R.pdf    parts= 23 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s24_qp_01.pdf     parts= 24 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s24_qp_01R.pdf    parts= 24 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s24_qp_02.pdf     parts= 23 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s24_qp_02R.pdf    parts= 23 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s25_qp_01.pdf     parts= 24 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s25_qp_01R.pdf    parts= 24 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s25_qp_02.pdf     parts= 23 questions=4/4 marks=80/80
+ok  pdfs\4EC1\E-4EC1_s25_qp_02R.pdf    parts= 23 questions=4/4 marks=80/80
+
+17 of 18 papers read completely
+=== 4ET1
+ok  pdfs\4ET1\E-4ET1_s21_qp_01.pdf     parts= 11 questions=11/11 marks=420/60
+ok  pdfs\4ET1\E-4ET1_s21_qp_02.pdf     parts= 22 questions=22/22 marks=660/60
+ok  pdfs\4ET1\E-4ET1_s22_qp_01.pdf     parts= 11 questions=11/11 marks=420/60
+ok  pdfs\4ET1\E-4ET1_s22_qp_01R.pdf    parts= 11 questions=11/11 marks=420/60
+ok  pdfs\4ET1\E-4ET1_s22_qp_02.pdf     parts= 22 questions=22/22 marks=660/60
+ok  pdfs\4ET1\E-4ET1_s22_qp_02R.pdf    parts= 22 questions=22/22 marks=660/60
+ok  pdfs\4ET1\E-4ET1_s23_qp_01.pdf     parts= 13 questions=13/13 marks=480/90
+ok  pdfs\4ET1\E-4ET1_s23_qp_01R.pdf    parts= 13 questions=13/13 marks=480/90
+ok  pdfs\4ET1\E-4ET1_s23_qp_02.pdf     parts= 22 questions=22/22 marks=660/60
+ok  pdfs\4ET1\E-4ET1_s23_qp_02R.pdf    parts= 22 questions=22/22 marks=660/60
+ok  pdfs\4ET1\E-4ET1_s24_qp_01.pdf     parts= 13 questions=13/13 marks=480/90
+ok  pdfs\4ET1\E-4ET1_s24_qp_01R.pdf    parts= 13 questions=13/13 marks=480/90
+ok  pdfs\4ET1\E-4ET1_s24_qp_02.pdf     parts= 22 questions=22/22 marks=660/60
+ok  pdfs\4ET1\E-4ET1_s24_qp_02R.pdf    parts= 22 questions=22/22 marks=660/60
+ok  pdfs\4ET1\E-4ET1_s25_qp_01.pdf     parts= 13 questions=13/13 marks=480/90
+ok  pdfs\4ET1\E-4ET1_s25_qp_01R.pdf    parts= 13 questions=13/13 marks=480/90
+ok  pdfs\4ET1\E-4ET1_s25_qp_02.pdf     parts= 22 questions=22/22 marks=660/60
+ok  pdfs\4ET1\E-4ET1_s25_qp_02R.pdf    parts= 22 questions=22/22 marks=660/60
+
+18 of 18 papers read completely
+=== 4GE1
+ok  pdfs\4GE1\E-4GE1_s21_qp_01.pdf     parts= 39 questions=6/6 marks=111/62
+ok  pdfs\4GE1\E-4GE1_s21_qp_02.pdf     parts= 84 questions=9/9 marks=216/97
+ok  pdfs\4GE1\E-4GE1_s22_qp_01.pdf     parts= 48 questions=6/6 marks=111/62
+ok  pdfs\4GE1\E-4GE1_s22_qp_01R.pdf    parts= 48 questions=6/6 marks=111/62
+ok  pdfs\4GE1\E-4GE1_s22_qp_02.pdf     parts= 69 questions=9/9 marks=216/72
+ok  pdfs\4GE1\E-4GE1_s22_qp_02R.pdf    parts= 69 questions=9/9 marks=216/72
+ok  pdfs\4GE1\E-4GE1_s23_qp_01.pdf     parts= 42 questions=6/6 marks=135/70
+ok  pdfs\4GE1\E-4GE1_s23_qp_01R.pdf    parts= 42 questions=6/6 marks=135/70
+ok  pdfs\4GE1\E-4GE1_s23_qp_02.pdf     parts= 84 questions=9/9 marks=240/105
+ok  pdfs\4GE1\E-4GE1_s23_qp_02R.pdf    parts= 84 questions=9/9 marks=240/105
+ok  pdfs\4GE1\E-4GE1_s24_qp_01.pdf     parts= 51 questions=6/6 marks=135/70
+ok  pdfs\4GE1\E-4GE1_s24_qp_01R.pdf    parts= 51 questions=6/6 marks=135/70
+ok  pdfs\4GE1\E-4GE1_s24_qp_02.pdf     parts= 75 questions=9/9 marks=240/105
+ok  pdfs\4GE1\E-4GE1_s24_qp_02R.pdf    parts= 75 questions=9/9 marks=240/105
+ok  pdfs\4GE1\E-4GE1_s25_qp_01.pdf     parts= 42 questions=6/6 marks=135/70
+ok  pdfs\4GE1\E-4GE1_s25_qp_01R.pdf    parts= 42 questions=6/6 marks=135/70
+ok  pdfs\4GE1\E-4GE1_s25_qp_02.pdf     parts= 84 questions=9/9 marks=240/105
+ok  pdfs\4GE1\E-4GE1_s25_qp_02R.pdf    parts= 84 questions=9/9 marks=240/105
+
+18 of 18 papers read completely
+=== 4HB1
+ok  pdfs\4HB1\E-4HB1_s21_qp_01.pdf     parts= 29 questions=8/8 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s21_qp_02.pdf     parts= 36 questions=8/8 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s22_qp_01.pdf     parts= 37 questions=9/9 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s22_qp_01R.pdf    parts= 36 questions=10/10 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s22_qp_02.pdf     parts= 38 questions=9/9 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s22_qp_02R.pdf    parts= 37 questions=7/7 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s23_qp_01.pdf     parts= 34 questions=7/7 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s23_qp_01R.pdf    parts= 30 questions=8/8 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s23_qp_02.pdf     parts= 30 questions=7/7 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s23_qp_02R.pdf    parts= 41 questions=8/8 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s24_qp_01.pdf     parts= 42 questions=9/9 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s24_qp_01R.pdf    parts= 42 questions=9/9 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s24_qp_02.pdf     parts= 37 questions=8/8 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s24_qp_02R.pdf    parts= 41 questions=8/8 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s25_qp_01.pdf     parts= 29 questions=7/7 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s25_qp_01R.pdf    parts= 29 questions=7/7 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s25_qp_02.pdf     parts= 30 questions=7/7 marks=90/90
+ok  pdfs\4HB1\E-4HB1_s25_qp_02R.pdf    parts= 46 questions=8/8 marks=90/90
+
+18 of 18 papers read completely
+=== 4HI1
+ok  pdfs\4HI1\E-4HI1_s21_qp_1A.pdf     parts= 32 questions=8/8 marks=368/60
+ok  pdfs\4HI1\E-4HI1_s21_qp_1B.pdf     parts= 32 questions=8/8 marks=368/30
+ok  pdfs\4HI1\E-4HI1_s21_qp_2A.pdf     parts= 15 questions=5/A5 marks=150/30
+ok  pdfs\4HI1\E-4HI1_s21_qp_2B.pdf     parts= 43 questions=12/B7 marks=472/60
+ok  pdfs\4HI1\E-4HI1_s22_qp_1A.pdf     parts= 32 questions=8/8 marks=368/60
+ok  pdfs\4HI1\E-4HI1_s22_qp_1AR.pdf    parts= 32 questions=8/8 marks=368/60
+ok  pdfs\4HI1\E-4HI1_s22_qp_1B.pdf     parts= 32 questions=8/8 marks=368/30
+ok  pdfs\4HI1\E-4HI1_s22_qp_1BR.pdf    parts= 32 questions=8/8 marks=368/30
+ok  pdfs\4HI1\E-4HI1_s22_qp_2A.pdf     parts= 15 questions=5/A5 marks=150/30
+ok  pdfs\4HI1\E-4HI1_s22_qp_2AR.pdf    parts= 15 questions=5/A5 marks=150/30
+ok  pdfs\4HI1\E-4HI1_s22_qp_2B.pdf     parts= 43 questions=12/B7 marks=472/60
+ok  pdfs\4HI1\E-4HI1_s22_qp_2BR.pdf    parts= 43 questions=12/B7 marks=472/60
+ok  pdfs\4HI1\E-4HI1_s23_qp_01.pdf     parts= 32 questions=8/8 marks=368/60
+ok  pdfs\4HI1\E-4HI1_s23_qp_01R.pdf    parts= 32 questions=8/8 marks=368/60
+ok  pdfs\4HI1\E-4HI1_s23_qp_02.pdf     parts= 46 questions=13/B8 marks=502/60
+ok  pdfs\4HI1\E-4HI1_s23_qp_02R.pdf    parts= 47 questions=13/B8 marks=518/60
+ok  pdfs\4HI1\E-4HI1_s24_qp_01.pdf     parts= 32 questions=8/8 marks=368/60
+ok  pdfs\4HI1\E-4HI1_s24_qp_01R.pdf    parts= 32 questions=8/8 marks=368/60
+ok  pdfs\4HI1\E-4HI1_s24_qp_02.pdf     parts= 47 questions=13/B8 marks=518/60
+ok  pdfs\4HI1\E-4HI1_s24_qp_02R.pdf    parts= 47 questions=13/B8 marks=518/60
+ok  pdfs\4HI1\E-4HI1_s25_qp_01.pdf     parts= 32 questions=8/8 marks=368/60
+ok  pdfs\4HI1\E-4HI1_s25_qp_01R.pdf    parts= 32 questions=8/8 marks=368/60
+ok  pdfs\4HI1\E-4HI1_s25_qp_02.pdf     parts= 47 questions=13/B8 marks=518/60
+ok  pdfs\4HI1\E-4HI1_s25_qp_02R.pdf    parts= 47 questions=13/B8 marks=518/60
+
+24 of 24 papers read completely
+=== 4IT1
+ok  pdfs\4IT1\E-4IT1_s21_qp_01.pdf     parts= 41 questions=5/5 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s21_qp_02.pdf     parts= 20 questions=7/B4 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s22_qp_01.pdf     parts= 49 questions=5/5 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s22_qp_01R.pdf    parts= 52 questions=5/5 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s22_qp_02.pdf     parts= 16 questions=7/B4 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s23_qp_01.pdf     parts= 52 questions=5/5 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s23_qp_01R.pdf    parts= 52 questions=5/5 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s23_qp_02.pdf     parts= 18 questions=7/B4 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s24_qp_01.pdf     parts= 51 questions=5/5 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s24_qp_01R.pdf    parts= 50 questions=5/5 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s24_qp_02.pdf     parts= 19 questions=7/B4 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s25_qp_01.pdf     parts= 50 questions=5/5 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s25_qp_01R.pdf    parts= 50 questions=5/5 marks=100/100
+ok  pdfs\4IT1\E-4IT1_s25_qp_02.pdf     parts= 17 questions=8/B5 marks=100/100
+
+14 of 14 papers read completely
+=== 4MA1
+ok  pdfs\4MA1\E-4MA1_s21_qp_1F.pdf     parts= 52 questions=25/25 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s21_qp_1H.pdf     parts= 38 questions=26/26 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s21_qp_2F.pdf     parts= 48 questions=25/25 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s21_qp_2H.pdf     parts= 33 questions=23/23 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s22_qp_1F.pdf     parts= 55 questions=25/25 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s22_qp_1FR.pdf    parts= 51 questions=27/27 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s22_qp_1H.pdf     parts= 36 questions=24/24 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s22_qp_1HR.pdf    parts= 33 questions=25/25 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s22_qp_2F.pdf     parts= 51 questions=28/28 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s22_qp_2FR.pdf    parts= 57 questions=27/27 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s22_qp_2H.pdf     parts= 36 questions=24/24 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s22_qp_2HR.pdf    parts= 39 questions=25/25 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s23_qp_1F.pdf     parts= 50 questions=24/24 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s23_qp_1FR.pdf    parts= 53 questions=28/28 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s23_qp_1H.pdf     parts= 39 questions=23/23 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s23_qp_1HR.pdf    parts= 42 questions=25/25 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s23_qp_2F.pdf     parts= 57 questions=28/28 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s23_qp_2FR.pdf    parts= 49 questions=25/25 marks=100/100
+BAD pdfs\4MA1\E-4MA1_s23_qp_2H.pdf     parts= 34 questions=24/25 marks=97/100 OFF Q1:0/3
+ok  pdfs\4MA1\E-4MA1_s23_qp_2HR.pdf    parts= 34 questions=26/26 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s24_qp_1F.pdf     parts= 56 questions=26/26 marks=100/100
+BAD pdfs\4MA1\E-4MA1_s24_qp_1FR.pdf    parts= 50 questions=24/24 marks=99/100 OFF Q2:1/2
+ok  pdfs\4MA1\E-4MA1_s24_qp_1H.pdf     parts= 37 questions=25/25 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s24_qp_1HR.pdf    parts= 32 questions=23/23 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s24_qp_2F.pdf     parts= 49 questions=28/28 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s24_qp_2FR.pdf    parts= 59 questions=26/26 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s24_qp_2H.pdf     parts= 37 questions=25/25 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s24_qp_2HR.pdf    parts= 44 questions=26/26 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s25_qp_1F.pdf     parts= 54 questions=26/26 marks=100/100
+BAD pdfs\4MA1\E-4MA1_s25_qp_1FR.pdf    parts= 52 questions=24/26 marks=94/100 MISSING 13,14 OFF Q13:0/2 Q14:0/4
+ok  pdfs\4MA1\E-4MA1_s25_qp_1H.pdf     parts= 40 questions=25/25 marks=100/100
+BAD pdfs\4MA1\E-4MA1_s25_qp_1HR.pdf    parts= 35 questions=23/23 marks=85/100 OFF Q24:0/6 Q25:0/6 Q26:0/4
+ok  pdfs\4MA1\E-4MA1_s25_qp_2F.pdf     parts= 48 questions=28/28 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s25_qp_2FR.pdf    parts= 51 questions=27/27 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s25_qp_2H.pdf     parts= 37 questions=26/26 marks=100/100
+ok  pdfs\4MA1\E-4MA1_s25_qp_2HR.pdf    parts= 35 questions=26/26 marks=100/100
+
+32 of 36 papers read completely
+=== 4MB1
+BAD pdfs\4MB1\E-4MB1_s21_qp_01.pdf     parts= 32 questions=26/27 marks=97/100 MISSING 8 OFF Q8:0/3
+ok  pdfs\4MB1\E-4MB1_s21_qp_02.pdf     parts= 34 questions=12/12 marks=100/100
+ok  pdfs\4MB1\E-4MB1_s22_qp_01.pdf     parts= 34 questions=27/27 marks=100/100
+ok  pdfs\4MB1\E-4MB1_s22_qp_01R.pdf    parts= 37 questions=27/27 marks=100/100
+ok  pdfs\4MB1\E-4MB1_s22_qp_02.pdf     parts= 35 questions=11/11 marks=100/100
+ok  pdfs\4MB1\E-4MB1_s22_qp_02R.pdf    parts= 37 questions=11/11 marks=100/100
+BAD pdfs\4MB1\E-4MB1_s23_qp_01.pdf     parts= 14 questions=11/11 marks=30/100 OFF Q11:9/3 Q12:0/3 Q13:0/4 Q14:0/3 Q15:0/3 Q16:0/3 Q17:0/3 Q18:0/4 Q19:0/4 Q20:0/4 Q21:0/4 Q22:0/5 Q23:0/5 Q24:0/6 Q25:0/6 Q26:0/6 Q27:0/7 Q28:0/6
+ok  pdfs\4MB1\E-4MB1_s23_qp_01R.pdf    parts= 40 questions=26/26 marks=100/100
+ok  pdfs\4MB1\E-4MB1_s23_qp_02.pdf     parts= 36 questions=12/12 marks=100/100
+ok  pdfs\4MB1\E-4MB1_s23_qp_02R.pdf    parts= 40 questions=11/11 marks=100/100
+BAD pdfs\4MB1\E-4MB1_s24_qp_01.pdf     parts= 37 questions=26/27 marks=98/100 MISSING 11 OFF Q11:0/2
+ok  pdfs\4MB1\E-4MB1_s24_qp_01R.pdf    parts= 35 questions=26/26 marks=100/100
+ok  pdfs\4MB1\E-4MB1_s24_qp_02.pdf     parts= 39 questions=11/11 marks=100/100
+BAD pdfs\4MB1\E-4MB1_s24_qp_02R.pdf    parts= 36 questions=12/12 marks=96/100 OFF Q7:5/9
+ok  pdfs\4MB1\E-4MB1_s25_qp_01.pdf     parts= 38 questions=26/26 marks=100/100
+ok  pdfs\4MB1\E-4MB1_s25_qp_01R.pdf    parts= 36 questions=26/26 marks=100/100
+ok  pdfs\4MB1\E-4MB1_s25_qp_02.pdf     parts= 41 questions=12/12 marks=100/100
+ok  pdfs\4MB1\E-4MB1_s25_qp_02R.pdf    parts= 37 questions=12/12 marks=100/100
+
+14 of 18 papers read completely
+=== 4PH1
+ok  pdfs\4PH1\E-4PH1_s21_qp_1P.pdf     parts= 48 questions=11/11 marks=110/110
+ok  pdfs\4PH1\E-4PH1_s21_qp_2P.pdf     parts= 32 questions=7/7 marks=70/70
+ok  pdfs\4PH1\E-4PH1_s22_qp_1P.pdf     parts= 59 questions=12/12 marks=110/110
+ok  pdfs\4PH1\E-4PH1_s22_qp_1PR.pdf    parts= 49 questions=12/12 marks=110/110
+ok  pdfs\4PH1\E-4PH1_s22_qp_2P.pdf     parts= 31 questions=7/7 marks=70/70
+ok  pdfs\4PH1\E-4PH1_s22_qp_2PR.pdf    parts= 30 questions=7/7 marks=70/70
+ok  pdfs\4PH1\E-4PH1_s23_qp_1P.pdf     parts= 45 questions=12/12 marks=110/110
+ok  pdfs\4PH1\E-4PH1_s23_qp_1PR.pdf    parts= 46 questions=11/11 marks=110/110
+ok  pdfs\4PH1\E-4PH1_s23_qp_2P.pdf     parts= 36 questions=8/8 marks=70/70
+ok  pdfs\4PH1\E-4PH1_s23_qp_2PR.pdf    parts= 30 questions=8/8 marks=70/70
+ok  pdfs\4PH1\E-4PH1_s24_qp_1P.pdf     parts= 51 questions=12/12 marks=110/110
+ok  pdfs\4PH1\E-4PH1_s24_qp_1PR.pdf    parts= 50 questions=12/12 marks=110/110
+ok  pdfs\4PH1\E-4PH1_s24_qp_2P.pdf     parts= 33 questions=8/8 marks=70/70
+ok  pdfs\4PH1\E-4PH1_s24_qp_2PR.pdf    parts= 30 questions=9/9 marks=70/70
+ok  pdfs\4PH1\E-4PH1_s25_qp_1P.pdf     parts= 49 questions=11/11 marks=110/110
+ok  pdfs\4PH1\E-4PH1_s25_qp_1PR.pdf    parts= 43 questions=11/11 marks=110/110
+ok  pdfs\4PH1\E-4PH1_s25_qp_2P.pdf     parts= 32 questions=8/8 marks=70/70
+ok  pdfs\4PH1\E-4PH1_s25_qp_2PR.pdf    parts= 31 questions=8/8 marks=70/70
+
+18 of 18 papers read completely
+=== 4PM1
+ok  pdfs\4PM1\E-4PM1_s21_qp_01.pdf     parts= 27 questions=11/11 marks=100/100
+ok  pdfs\4PM1\E-4PM1_s21_qp_02.pdf     parts= 29 questions=11/11 marks=100/100
+BAD pdfs\4PM1\E-4PM1_s22_qp_01.pdf     parts= 26 questions=9/10 marks=100/100 OFF Q1:0/3 Q2:12/9
+ok  pdfs\4PM1\E-4PM1_s22_qp_01R.pdf    parts= 26 questions=11/11 marks=100/100
+BAD pdfs\4PM1\E-4PM1_s22_qp_02.pdf     parts= 26 questions=11/11 marks=98/100 OFF Q7:9/11
+ok  pdfs\4PM1\E-4PM1_s22_qp_02R.pdf    parts= 28 questions=11/11 marks=100/100
+ok  pdfs\4PM1\E-4PM1_s23_qp_01.pdf     parts= 21 questions=11/11 marks=100/100
+BAD pdfs\4PM1\E-4PM1_s23_qp_01R.pdf    parts= 27 questions=10/10 marks=97/100 OFF Q8:7/10
+ok  pdfs\4PM1\E-4PM1_s23_qp_02.pdf     parts= 31 questions=11/11 marks=100/100
+ok  pdfs\4PM1\E-4PM1_s23_qp_02R.pdf    parts= 30 questions=11/11 marks=100/100
+BAD pdfs\4PM1\E-4PM1_s24_qp_01.pdf     parts= 25 questions=10/10 marks=95/100 OFF Q3:3/8
+ok  pdfs\4PM1\E-4PM1_s24_qp_01R.pdf    parts= 28 questions=11/11 marks=100/100
+BAD pdfs\4PM1\E-4PM1_s24_qp_02.pdf     parts= 25 questions=11/11 marks=96/100 OFF Q8:6/10
+ok  pdfs\4PM1\E-4PM1_s24_qp_02R.pdf    parts= 26 questions=11/11 marks=100/100
+ok  pdfs\4PM1\E-4PM1_s25_qp_01.pdf     parts= 29 questions=11/11 marks=100/100
+BAD pdfs\4PM1\E-4PM1_s25_qp_01R.pdf    parts= 22 questions=11/11 marks=93/100 OFF Q9:2/9
+ok  pdfs\4PM1\E-4PM1_s25_qp_02.pdf     parts= 28 questions=11/11 marks=100/100
+ok  pdfs\4PM1\E-4PM1_s25_qp_02R.pdf    parts= 22 questions=11/11 marks=100/100
+
+12 of 18 papers read completely
+=== 4SD0
+ok  pdfs\4SD0\E-4SD0_s21_qp_1B.pdf     parts= 46 questions=11/11 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s21_qp_1C.pdf     parts= 54 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s21_qp_1P.pdf     parts= 48 questions=11/11 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s22_qp_1B.pdf     parts= 43 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s22_qp_1BR.pdf    parts= 48 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s22_qp_1C.pdf     parts= 57 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s22_qp_1CR.pdf    parts= 57 questions=11/11 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s22_qp_1P.pdf     parts= 59 questions=12/12 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s22_qp_1PR.pdf    parts= 49 questions=12/12 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s23_qp_1B.pdf     parts= 47 questions=9/9 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s23_qp_1BR.pdf    parts= 51 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s23_qp_1C.pdf     parts= 55 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s23_qp_1CR.pdf    parts= 59 questions=11/11 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s23_qp_1P.pdf     parts= 45 questions=12/12 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s23_qp_1PR.pdf    parts= 46 questions=11/11 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s24_qp_1B.pdf     parts= 45 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s24_qp_1BR.pdf    parts= 46 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s24_qp_1C.pdf     parts= 56 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s24_qp_1CR.pdf    parts= 57 questions=12/12 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s24_qp_1P.pdf     parts= 51 questions=12/12 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s24_qp_1PR.pdf    parts= 50 questions=12/12 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s25_qp_1B.pdf     parts= 46 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s25_qp_1BR.pdf    parts= 49 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s25_qp_1C.pdf     parts= 49 questions=10/10 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s25_qp_1CR.pdf    parts= 55 questions=11/11 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s25_qp_1P.pdf     parts= 49 questions=11/11 marks=110/110
+ok  pdfs\4SD0\E-4SD0_s25_qp_1PR.pdf    parts= 43 questions=11/11 marks=110/110
+
+27 of 27 papers read completely

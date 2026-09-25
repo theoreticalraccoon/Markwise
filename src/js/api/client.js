@@ -1,9 +1,5 @@
-/**
- * Supabase client and the edge-function transport.
- *
- * Edge functions are called directly rather than through supabase.functions
- * .invoke() because the ask route streams SSE, and invoke() buffers.
- */
+// Supabase client and edge-function transport. Functions are called with
+// fetch rather than functions.invoke(), which buffers the SSE stream.
 
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 import { SUPABASE_URL, SUPABASE_KEY, FUNCTIONS_URL, STORAGE } from "../config.js";
@@ -54,12 +50,7 @@ export async function callFunction(name, body, { signal } = {}) {
   return payload;
 }
 
-/**
- * POST and consume the SSE response.
- *
- * Uses fetch + a manual parser rather than EventSource, which cannot send
- * headers and so cannot carry the auth token.
- */
+/** POST and read the SSE stream. EventSource can't send the auth header. */
 export async function streamFunction(name, body, handlers = {}, { signal } = {}) {
   const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
     method: "POST",
@@ -107,16 +98,13 @@ export async function streamFunction(name, body, handlers = {}, { signal } = {})
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
 
-    // Frames are separated by a blank line, which may be \n\n or \r\n\r\n; a
-    // partial frame stays buffered.
+    // Frames end with a blank line (\n\n or \r\n\r\n); keep partial ones buffered.
     const frames = buffer.split(/\r?\n\r?\n/);
     buffer = frames.pop() ?? "";
     for (const frame of frames) dispatch(frame);
   }
 
-  // The stream can end without a trailing blank line. The last frame is
-  // usually "done", and dropping it left the UI waiting for an event that had
-  // already been sent.
+  // The stream can end without a trailing blank line; don't drop the last frame.
   buffer += decoder.decode();
   if (buffer.trim()) dispatch(buffer);
 }

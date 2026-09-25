@@ -1,14 +1,5 @@
-/**
- * Hash router.
- *
- * Hash rather than history API because the app is a static file that may be
- * opened from disk or from a subpath on any host. There is no server to
- * rewrite deep links.
- *
- * Each route exports `render(container, params)` and may return a cleanup
- * function, which is called before the next route mounts. That is how the mock
- * timer and the in-flight ask request get cancelled on navigation.
- */
+// Hash router, since the app is static and may run from disk or a subpath.
+// A route's render() can return a cleanup fn, called before the next one mounts.
 
 import { esc } from "./ui/dom.js";
 
@@ -44,9 +35,7 @@ export function navigate(path, { replace = false } = {}) {
     return;
   }
   if (replace) {
-    // replaceState rewrites the URL without firing hashchange, so the router
-    // would never hear about it. The address bar would say "../marked" while
-    // the previous view stayed on screen. Render it explicitly.
+    // replaceState doesn't fire hashchange, so render explicitly.
     history.replaceState(null, "", target);
     handleRoute();
   } else {
@@ -54,18 +43,8 @@ export function navigate(path, { replace = false } = {}) {
   }
 }
 
-/**
- * Replace the outlet with a clean copy of itself.
- *
- * Every view wires its buttons with delegated listeners on the outlet, and
- * `innerHTML = ...` does not remove listeners from the element that holds the
- * markup. The outlet is the same element for the whole session, so each visit
- * to a view stacked another set of handlers on it: on the third visit, one
- * click on "Next" skipped three pages, "Revise" created three tasks, and
- * "Show the mark scheme" toggled itself straight back. A fresh element per
- * navigation has no listeners, no leftover markup, and no way for a render that
- * is still in flight to write into the screen that replaced it.
- */
+// Delegated listeners pile up on a reused outlet (three visits, three clicks
+// per click). A fresh element each navigation starts clean.
 function freshOutlet() {
   const next = container.cloneNode(false);
   container.replaceWith(next);
@@ -87,8 +66,7 @@ export async function handleRoute() {
     cleanup?.();
     cleanup = null;
   } else if (cleanup) {
-    // The outlet is about to be replaced, so whatever the view attached to the
-    // old one (timers, document listeners) has to go with it.
+    // The old outlet is going, so its timers and listeners go too.
     cleanup();
     cleanup = null;
   }
@@ -102,16 +80,14 @@ export async function handleRoute() {
   try {
     const result = await module.render(outlet, { segments, query, sameRoute });
 
-    // The student navigated again while this was loading. Whatever it built is
-    // in an outlet that is no longer on screen; only its cleanup still matters.
+    // Navigated away while loading; only cleanup matters now.
     if (id !== navToken) {
       if (typeof result === "function") result();
       return;
     }
     if (typeof result === "function") cleanup = result;
 
-    // Move keyboard and screen-reader focus to the new page, unless the view
-    // already put it somewhere useful (an autofocused input, say).
+    // Move focus to the new page unless the view already placed it.
     if (document.activeElement === document.body || !outlet.contains(document.activeElement)) {
       if (!outlet.contains(document.activeElement) && document.activeElement?.tagName !== "INPUT") {
         outlet.focus({ preventScroll: true });

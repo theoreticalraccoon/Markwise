@@ -1,13 +1,6 @@
-/**
- * Sending PDFs and photos to Gemini.
- *
- * The ingestion CLI extracts text with pdf.js and parses it with regexes,
- * which is exact and free but needs a Node process and a folder of correctly
- * named files. Neither exists when a student drags a PDF into the browser, so
- * the in-app path hands the whole document to Gemini instead and lets it read
- * the layout directly: slower and not free, but it needs nothing from the
- * student except the file.
- */
+// Hand whole PDFs and photos to Gemini. The CLI parses text with regexes, but
+// a browser upload has no Node and no naming convention, so the model reads
+// the layout itself.
 
 import { CHAT_MODELS } from "./gemini.ts";
 
@@ -45,10 +38,7 @@ export function validate(files: Attachment[]): string | null {
   return null;
 }
 
-/**
- * Ask Gemini to read the attached documents and answer in a fixed shape.
- * Walks the model chain the same way the text routes do.
- */
+/** Have Gemini read the attached files and answer in a fixed shape, walking the model chain. */
 export async function readFiles<T>(
   files: Attachment[],
   prompt: string,

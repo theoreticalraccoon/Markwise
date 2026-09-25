@@ -1,17 +1,8 @@
 /**
- * POST /functions/v1/ingest
- *
- * Adds one past-paper PDF to the corpus, straight from the browser.
- *
- * The student supplies a file and nothing else. No filename convention, no
- * subject code, no CLI. Gemini reads the cover page to work out what the
- * document is, then extracts either the questions or the marking points,
- * and the result is embedded and stored.
- *
- * Mark schemes are matched to a question paper that is already in the corpus
- * and fill in its `ms_content`. A mark scheme that arrives first is stored on
- * its own so the question paper can pair with it later. The student should
- * not have to care which order they dragged the files in.
+ * POST /functions/v1/ingest: add one past-paper PDF to the corpus from the
+ * browser (admins only). Gemini reads the cover to identify it, then extracts
+ * questions or marking points. A mark scheme that arrives before its paper
+ * waits for it, so upload order doesn't matter.
  *
  * Body: { file: { mimeType, data }, fileName? }
  */
@@ -172,10 +163,7 @@ Deno.serve(async (req) => {
   const invalid = validate([file]);
   if (invalid) return fail(req, invalid);
 
-  // The corpus is shared by every student, and this route replaces papers and
-  // mark schemes in it. Letting any signed-in user do that meant anyone could
-  // overwrite the scheme everyone else is marked against. Adding papers is for
-  // the person who runs the deployment.
+  // This route rewrites what every student is marked against, so it's admin-only.
   const { data: isAdmin } = await adminClient().rpc("is_admin", { p_user: user.id });
   if (!isAdmin) {
     return json(req, {
@@ -193,8 +181,7 @@ Deno.serve(async (req) => {
 
   const admin = adminClient();
 
-  // Everything from here can throw (a Gemini call, a database write). Whatever
-  // happens, the reservation is handed back rather than spent on nothing.
+  // Anything below can throw; the claim is refunded whatever happens.
   const run = async (): Promise<Response> => {
 
   // ---- what is this document? --------------------------------------------
@@ -229,8 +216,7 @@ Deno.serve(async (req) => {
     }, 422);
   }
 
-  // A paper with no year or series cannot be told apart from another, and a
-  // guess would file it on top of a different paper. Refuse instead.
+  // No year or series means it can't be told apart from other papers. Refuse.
   if ((id.kind === "qp" || id.kind === "ms") && (!id.year || !id.session)) {
     await release(user, "ingest");
     return json(req, {
@@ -295,9 +281,7 @@ Deno.serve(async (req) => {
 
   const paperId = await upsertPaper(admin, subjectCode, id, paperCode, body.fileName ?? null);
 
-  // Mark schemes this paper already had, before its rows are replaced.
-  // Re-adding a question paper must never silently destroy pairings that took
-  // a separate upload, or a whole CLI run, to establish.
+  // Keep schemes this paper already had; re-adding it mustn't wipe pairings.
   const existing = await loadExistingMarkSchemes(admin, paperId);
   // A mark scheme uploaded before its question paper waits here for it.
   const pending = await loadPendingMarkScheme(admin, subjectCode, id);
@@ -330,9 +314,7 @@ Deno.serve(async (req) => {
 
   rows.forEach((r, i) => { (r as Record<string, unknown>).embedding = vectors[i] ?? null; });
 
-  // Upserted on (paper, kind, question number) so a question keeps its id when
-  // the paper is added again. Deleting and re-creating gave every question a
-  // new id, which wiped each student's recall schedule for it.
+  // Upsert so each question keeps its id (students' recall schedules hang off it).
   await replaceChunks(admin, paperId, "question", rows);
 
   const paired = rows.filter((r) => r.ms_content).length;
@@ -360,13 +342,8 @@ Deno.serve(async (req) => {
 /* ---------------------------------------------------------------- helpers -- */
 
 /**
- * The subject row this document belongs to, or null when it is not one this
- * library covers.
- *
- * Edexcel codes look like 4PH1 and are stored as E-4PH1. A code that matches no
- * pattern is refused: this used to invent a subject from whatever the model
- * read, so one misread number ("2024") created a subject that then appeared in
- * every student's onboarding.
+ * The subject row for this document, or null if we don't carry it. Codes must
+ * look like 4PH1: a misread "2024" once created a junk subject.
  */
 async function resolveSubject(admin: ReturnType<typeof adminClient>, id: Identity): Promise<string | null> {
   const printed = (id.subjectCode ?? "").trim().toUpperCase().replace(/\/.*$/, "").replace(/\s+/g, "");
@@ -393,13 +370,7 @@ function buildCode(subjectCode: string, id: Identity): string {
   return `${subjectCode}_${letter}${yy}_${id.kind}${id.paperRef ? `_${id.paperRef}` : ""}`;
 }
 
-/**
- * Look a paper up by its identity: subject, kind, year, series and reference.
- *
- * `.eq(col, null)` is not "is null" in PostgREST: it becomes `col=eq.null`,
- * which matches nothing, so a paper with any empty field was never found and
- * every upload inserted a duplicate.
- */
+// PostgREST's .eq(col, null) matches nothing, so nullable fields use .is().
 function paperMatch(admin: ReturnType<typeof adminClient>, subjectCode: string, id: Identity, kind: string) {
   let q = admin.from("papers").select("id")
     .eq("subject_code", subjectCode).eq("kind", kind).eq("paper_ref", id.paperRef ?? "");
@@ -431,10 +402,7 @@ async function upsertPaper(
   return data.id;
 }
 
-/**
- * Replace a paper's chunks of one kind, keeping the ids of those that stay.
- * See the note where it is called: ids matter to every student's history.
- */
+/** Replace a paper's chunks of one kind, keeping ids for rows that stay. */
 async function replaceChunks(
   admin: ReturnType<typeof adminClient>, paperId: string, kind: string,
   rows: Record<string, unknown>[],
@@ -464,11 +432,7 @@ async function loadExistingMarkSchemes(
   return map;
 }
 
-/**
- * Mark-scheme rows waiting for their question paper, keyed by question number.
- * Held as a `markscheme` chunk so nothing is lost when the files arrive in the
- * order the student happened to pick them.
- */
+/** Scheme rows waiting for their question paper, by question number. */
 async function loadPendingMarkScheme(
   admin: ReturnType<typeof adminClient>, subjectCode: string, id: Identity,
 ): Promise<Map<string, string>> {

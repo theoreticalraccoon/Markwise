@@ -4,12 +4,8 @@ const LANGUAGE_SCHEMES = {
   "2C": "Java",
 };
 
-/**
- * Pearson published the 2021-2022 Computer Science Paper 02 once, but split
- * its mark scheme into 2A/2B/2C language editions. Attach those scheme-only
- * groups to the shared paper while leaving later, real 2A question papers
- * alone.
- */
+// Computer Science 2021-22 Paper 02 was set once but marked in three language
+// editions (2A/2B/2C). Attach those scheme-only groups to the shared paper.
 export function attachLanguageSchemeVariants(groups) {
   for (const group of groups.values()) {
     const meta = group.meta;

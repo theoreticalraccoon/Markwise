@@ -1,13 +1,6 @@
-/* ===========================================================================
-   Markwise. The assistant, the upload flows and the marked paper.
-   Loaded after app.css, which owns the tokens everything here uses.
-   =========================================================================== */
+/* Assistant, upload flows and marked papers. Loads after app.css (tokens). */
 
-/* ===================================================================== chat =
-   The assistant fills the viewport with the composer pinned to the bottom, the
-   way every chat a student already uses behaves. The thread scrolls; the page
-   does not, so the box you type into never walks off the screen.
-   ========================================================================== */
+/* ---- chat: the thread scrolls, the composer stays pinned at the bottom. */
 
 .chat {
   display: flex;
@@ -190,10 +183,7 @@
 .mark-tools { margin-top: 14px; }
 .ms-panel { margin-top: 12px; }
 
-/* ================================================================== steps ==
-   The upload flows are numbered: pick, add, go. One decision at a time, so
-   nothing needs explaining.
-   ========================================================================== */
+/* ---- steps: upload flows are numbered pick, add, go. */
 
 .steps { max-width: 640px; }
 .step { margin-bottom: 22px; }
@@ -313,10 +303,7 @@
 .matched-paper { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
 .matched-paper strong { color: var(--ink); font-weight: 600; }
 
-/* --- the grounding, made visible -----------------------------------------
-   Retrieval is the point of the app, so it is stated in the header and
-   credited under every answer rather than left as a subtle footnote.
-   ------------------------------------------------------------------------ */
+/* ---- grounding: sources shown in the header and under every answer. */
 
 .chat-grounding {
   display: inline-flex; align-items: center; gap: 6px;

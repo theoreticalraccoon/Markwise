@@ -1,0 +1,87 @@
+{
+  "generated": "2026-09-25T14:20:27.774Z",
+  "questions": 8,
+  "scored": 8,
+  "meanPctAwarded": {
+    "full": 12.5,
+    "partial": 34,
+    "none": 0
+  },
+  "fullMarksGivenForFullScheme": 1,
+  "zeroGivenForNoAnswer": 8,
+  "orderedFullOverPartialOverNone": 4,
+  "results": [
+    {
+      "subject": "4PH1",
+      "paper": "E-4PH1_s24_qp_1PR",
+      "question": "11(b)",
+      "marks": 4,
+      "full": 0,
+      "partial": 1,
+      "none": 0
+    },
+    {
+      "subject": "4CH1",
+      "paper": "E-4CH1_s25_qp_1C",
+      "question": "9(c)",
+      "marks": 5,
+      "full": 0,
+      "partial": 4,
+      "none": 0
+    },
+    {
+      "subject": "4BI1",
+      "paper": "E-4BI1_s22_qp_1B",
+      "question": "2(b)(ii)",
+      "marks": 3,
+      "full": 0,
+      "partial": 2,
+      "none": 0
+    },
+    {
+      "subject": "4MA1",
+      "paper": "E-4MA1_s25_qp_2F",
+      "question": "23",
+      "marks": 4,
+      "full": 0,
+      "partial": 0,
+      "none": 0
+    },
+    {
+      "subject": "4EC1",
+      "paper": "E-4EC1_s22_qp_01R",
+      "question": "1(h)",
+      "marks": 3,
+      "full": 0,
+      "partial": 1,
+      "none": 0
+    },
+    {
+      "subject": "4GE1",
+      "paper": "E-4GE1_s24_qp_01R",
+      "question": "3(d)",
+      "marks": 3,
+      "full": 0,
+      "partial": 0,
+      "none": 0
+    },
+    {
+      "subject": "4BS1",
+      "paper": "E-4BS1_s21_qp_02",
+      "question": "2(c)",
+      "marks": 3,
+      "full": 3,
+      "partial": 2,
+      "none": 0
+    },
+    {
+      "subject": "4CP0",
+      "paper": "E-4CP0_s22_qp_02",
+      "question": "1(g)",
+      "marks": 4,
+      "full": 0,
+      "partial": 0,
+      "none": 0
+    }
+  ]
+}

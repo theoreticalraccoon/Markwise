@@ -1,20 +1,8 @@
 /**
- * Your papers: add past papers to the corpus from the browser.
- *
- * Markwise is only as good as what it has read, and until this screen existed
- * the only way to feed it was a Node CLI, a service-role key and a folder of
- * correctly named PDFs. That is fine for the person who built it and useless
- * to everyone else: a student whose subject had not been ingested was told,
- * honestly but uselessly, that there was nothing to ground on.
- *
- * The student drops files in. The server reads each one's cover page to work
- * out what it is, extracts the questions or the marking points, embeds them and
- * stores them. Nothing is asked of the student: not the subject, not the year,
- * not a filename convention.
- *
- * Files are uploaded one at a time, deliberately. Each one is a whole document
- * going to Gemini, and a queue that reports each file as it lands is far more
- * useful than one request that either works or does not after four minutes.
+ * Your papers: add past papers to the shared corpus from the browser, for
+ * whoever runs the deployment. The server reads each file's cover to work out
+ * what it is, so nothing is asked of the uploader. Files go one at a time so
+ * each lands (or fails) visibly and the rate limit holds.
  */
 
 import { esc, on } from "../ui/dom.js";
@@ -41,9 +29,8 @@ export async function render(container) {
   running = false;
   generation++;
 
-  // Adding a paper replaces questions and mark schemes that every student is
-  // marked against, so it is limited to whoever runs this deployment. Say so
-  // before offering a drop zone that would only fail.
+  // Adding papers changes what every student is marked against, so it's
+  // admin-only. Say so before showing a drop zone.
   if (!store.isAdmin) {
     container.innerHTML = `
       <header class="view-head"><div><h1>Your papers</h1></div></header>
@@ -64,9 +51,7 @@ export async function render(container) {
   wire();
   paintQueue();
 
-  // Leaving the screen stops the queue. Otherwise coming back started a second
-  // loop on a fresh queue while the first was still waiting on the network,
-  // which defeated the one-file-at-a-time rate limiting.
+  // Leaving stops the queue; otherwise a second loop starts on return.
   return () => { generation++; running = false; };
 }
 
@@ -188,13 +173,7 @@ function toBase64(file) {
 
 /* ----------------------------------------------------------------- running -- */
 
-/**
- * One file at a time.
- *
- * Each upload is a whole PDF going through a vision model; firing six at once
- * would collide with the per-key rate limit and turn six slow successes into
- * six fast 429s.
- */
+/** One file at a time: six PDFs through a vision model at once just gets six 429s. */
 async function run() {
   if (running) return;
   running = true;
@@ -221,8 +200,7 @@ async function run() {
         next.status = "error";
         next.message = explainError(e) ?? "Could not add that file.";
         next.data = null;
-        // Not allowed to add papers: every remaining file would fail the same
-        // way, so stop rather than spend the queue finding that out.
+        // Not an admin: every other file would fail the same way, so stop.
         if (e?.code === "admin_only") {
           queue.filter((f) => f.status === "waiting").forEach((f) => { f.status = "error"; f.message = next.message; f.data = null; });
         }
@@ -233,8 +211,7 @@ async function run() {
     running = false;
   }
 
-  // Coverage drives every "can the AI answer for this subject" decision in the
-  // app, so refresh it once the run is over rather than per file.
+  // Refresh coverage once at the end; it drives "can the AI answer this".
   try {
     await loadCatalogue();
   } catch {
@@ -282,12 +259,7 @@ function paintQueue() {
     </section>`;
 }
 
-/**
- * What the corpus actually holds, for the subjects this student takes.
- *
- * The honest version of the claim on the front of the app: these are the
- * documents the answers will come from, and a subject with none says so.
- */
+/** What the corpus holds for this student's subjects. A subject with nothing says so. */
 function paintCoverage() {
   const slot = root?.querySelector("#pCoverage");
   if (!slot) return;

@@ -1,13 +1,9 @@
 /**
- * Upload smoke test: proves the two in-app document routes actually work.
+ * Upload smoke test for the two in-app document routes. A non-admin must be
+ * refused by /ingest; /mark-paper must read a real file and refuse politely
+ * rather than invent marks.
  *
  *   npm run test:upload
- *
- * Sends a real PDF to /ingest and checks the corpus grew, then marks a paper
- * from a rendered page image via /mark-paper. Both routes hand whole documents
- * to Gemini, so nothing short of a real file exercises them.
- *
- * Uses a throwaway user and cleans up the rows it creates.
  */
 import { readFile, stat } from "node:fs/promises";
 import { globSync } from "node:fs";
@@ -44,13 +40,8 @@ try {
     "Content-Type": "application/json",
   };
 
-  // Smallest question paper anywhere under pdfs/ (searched recursively: the
-  // real corpus lives in one folder per subject, pdfs/<CODE>/). Smallest, not
-  // first found, because this file is also sent to mark-paper below as a
-  // stand-in for a photographed answer script, and mark-paper's job is a
-  // couple of handwritten pages, not a 30-page typeset exam paper: a big one
-  // measurably risks the edge function's own compute budget, a platform
-  // limit no amount of client code here works around.
+  // The smallest question paper, because it also stands in for a photo sent to
+  // mark-paper, and a 30-page paper risks the function's compute limit.
   const candidates = globSync("**/*_qp_*.pdf", { cwd: PDF_DIR });
   if (!candidates.length) throw new Error("No question-paper PDF in ingest/pdfs to test with.");
   const sized = await Promise.all(candidates.map(async (f) => ({ f, size: (await stat(join(PDF_DIR, f))).size })));
@@ -60,9 +51,7 @@ try {
   /* ------------------------------------------------------------- ingest -- */
   console.log(`\ningest  (${basename(qp)})`);
   {
-    // A throwaway (non-admin) user. `ingest` is admin-only — writing to the
-    // shared corpus used to be open to any signed-in account, which was the
-    // actual security hole; this proves it stays closed.
+    // Throwaway users are not admins; ingest must stay closed to them.
     const data = (await readFile(join(PDF_DIR, qp))).toString("base64");
     const res = await fetch(`${FN}/ingest`, {
       method: "POST", headers,
@@ -86,9 +75,7 @@ try {
     if (!papers?.length) {
       check(false, "a paper exists to mark against");
     } else {
-      // A page of the question paper stands in for a photo of handwriting: the
-      // route should read it, find no matching answers, and say so clearly
-      // rather than inventing marks.
+      // A question-paper page has no answers on it, so the route should say so.
       const data = (await readFile(join(PDF_DIR, qp))).toString("base64");
       const res = await fetch(`${FN}/mark-paper`, {
         method: "POST", headers,

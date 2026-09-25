@@ -1,13 +1,5 @@
--- ============================================================================
--- Markwise: subject catalogue.
---
--- Codes are the real Cambridge IGCSE syllabus codes, because they are what
--- paper filenames use (0625_s19_qp_42) and what the ingestion pipeline parses.
--- Non-Cambridge entries (BTEC, school-specific "Extra Maths") get a synthetic
--- code so the planner can still track them; they simply have no corpus.
---
--- Safe to run more than once.
--- ============================================================================
+-- Original subject catalogue, using Cambridge codes. Superseded by the Edexcel
+-- catalogue in 20260922000000_edexcel.sql, which deactivates these rows. Idempotent.
 
 insert into public.subjects (code, board, name, level) values
   ('0580', 'Cambridge', 'Mathematics',               'IGCSE'),

@@ -1,14 +1,5 @@
--- ============================================================================
--- Markwise: daily caps for the two upload routes.
---
--- Both send whole documents to Gemini, so they are far more expensive per call
--- than a chat message and are capped much lower.
---
---   ingest     one past-paper PDF added to the corpus
---   markpaper  a set of photos of handwritten answers, marked
---
--- Safe to run more than once.
--- ============================================================================
+-- Daily caps for ingest (a PDF into the corpus) and markpaper (photos of
+-- answers). Whole documents cost far more than chat, so the caps are lower.
 
 insert into public.ai_limits (route, per_day) values
   ('ingest', 25),

@@ -1,11 +1,5 @@
-/**
- * Minimal DOM helpers.
- *
- * The app renders by building HTML strings and assigning innerHTML, so `esc`
- * is not optional politeness. Every value that reaches a template passes
- * through it. Corpus text comes from PDFs and user text comes from students;
- * both contain angle brackets.
- */
+// DOM helpers. Views render HTML strings, so every value goes through esc():
+// corpus text and student text both contain angle brackets.
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -22,11 +16,7 @@ export function escLines(value) {
   return esc(value).replace(/\n/g, "<br>");
 }
 
-/**
- * The small subset of Markdown the model actually emits: bold, italic, inline
- * code, bullets, and the [3] citation markers. Escaped first, so this can
- * never introduce markup.
- */
+/** The bit of Markdown the model uses (bold, italic, code, bullets, [3] citations). Escaped first. */
 export function renderMarkdown(text) {
   const lines = esc(text ?? "").split("\n");
   const out = [];
@@ -61,17 +51,8 @@ export function renderMarkdown(text) {
 }
 
 /**
- * Unwrap "$3n + k$" to "3n + k", and leave "$40 to $60" alone.
- *
- * Models reach for LaTeX on anything mathematical. The prompts forbid it, but a
- * stray "$x$" reaching the student as literal dollar signs is worse than
- * unwrapping it here. The old rule removed every pair of dollar signs, which
- * turned "costs rise from $40 to $60" into "costs rise from 40 to 60" and made
- * Business, Economics and Accounting answers wrong.
- *
- * A pair is only unwrapped when the text between them (a) has no space just
- * inside either sign, as maths never does and prices always do, and (b) looks
- * like maths: an operator, a bracket, or a lone letter.
+ * Unwrap "$3n + k$" but leave "$40 to $60" alone. Only unwrap when there's no
+ * space just inside the dollars (prices always have one) and it looks like maths.
  */
 function unwrapMath(s) {
   return s.replace(/\$\$?([^\s$](?:[^$\n]{0,118}[^\s$])?)\$\$?/g, (whole, inner) =>
@@ -82,8 +63,7 @@ function unwrapMath(s) {
 function inline(s) {
   return unwrapMath(s)
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    // No lookbehind: it is a syntax error on iOS before 16.4, which took the
-    // whole app down with it. "Ends on a non-space" is written into the match.
+    // No lookbehind: it's a syntax error on iOS before 16.4.
     .replace(/(^|\W)\*(?!\s)([^*]*?[^\s*])\*(?=\W|$)/g, "$1<em>$2</em>")
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     // [3] and [1, 2] become clickable citation pills

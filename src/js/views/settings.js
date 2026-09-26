@@ -1,19 +1,20 @@
 // Settings: subjects, exam series, tuition timetable, papers, appearance,
-// AI allowance and account. The allowance is visible up front so students can
+// AI allowance, account, and wiping your data to start fresh. The allowance is visible up front so students can
 // pace a shared free-tier budget.
 
 import { esc, on, debounce } from "../ui/dom.js";
 import { toast, confirmModal, openModal, closeModal, spinner } from "../ui/feedback.js";
 import { store, coverageFor, subjectName, mySubjectRows } from "../store.js";
 import {
-  saveProfile, loadUsage, loadTuition, createTuition, deleteTuition,
+  saveProfile, loadUsage, loadTuition, createTuition, deleteTuition, eraseMyData,
 } from "../api/data.js";
 import { sb } from "../api/client.js";
 import { applyTheme, currentTheme } from "../theme.js";
 import { invalidate as invalidatePlanner } from "./planner.js";
 import { invalidate as invalidateCalendar } from "./calendar.js";
 import { formatTime } from "../lib/dates.js";
-import { WEEKDAYS, WEEKDAYS_LONG } from "../config.js";
+import { WEEKDAYS, WEEKDAYS_LONG, STORAGE } from "../config.js";
+import { clearOfflineWork } from "../lib/offline.js";
 import { navigate } from "../router.js";
 
 let root = null;
@@ -100,6 +101,19 @@ export async function render(container) {
       <div class="card-actions">
         <button class="btn-ghost" id="changePassword">Change password</button>
         <button class="btn-ghost" id="signOutBtn">Sign out</button>
+      </div>
+    </section>
+
+    <section class="card plain">
+      <header><h2>Start fresh</h2></header>
+      <p class="field-hint">
+        Deletes everything Markwise has saved about you: tasks, tuition sessions, chats,
+        marked answers, mocks, marked papers, flashcard history, topic scores, your subjects
+        and exam series. Your account and password stay, and so does today's AI allowance.
+        This can't be undone.
+      </p>
+      <div class="card-actions">
+        <button class="btn-danger" id="eraseData">Delete my data</button>
       </div>
     </section>`;
 
@@ -194,6 +208,7 @@ function wire() {
   });
 
   root.querySelector("#changePassword").addEventListener("click", openPasswordForm);
+  root.querySelector("#eraseData").addEventListener("click", openEraseForm);
 
   root.querySelector("#signOutBtn").addEventListener("click", async () => {
     const ok = await confirmModal({
@@ -432,6 +447,55 @@ function openPasswordForm() {
         }
         closeModal();
         toast("Password updated.");
+      });
+    },
+  });
+}
+
+/* ----------------------------------------------------------- start fresh -- */
+
+function openEraseForm() {
+  openModal({
+    title: "Delete my data",
+    body: `
+      <p class="muted">
+        Everything you've saved in Markwise is deleted for good, and you'll pick your
+        subjects again as if you were new. Type <strong>DELETE</strong> to confirm.
+      </p>
+      <label class="field">
+        <span>Confirm</span>
+        <input type="text" id="eraseConfirm" autocomplete="off" autocapitalize="characters" data-autofocus>
+      </label>
+      <p class="auth-msg" id="eraseMsg" role="status"></p>`,
+    actions: `
+      <button class="btn-ghost" data-modal-close>Cancel</button>
+      <button class="btn-danger" id="eraseGo" disabled>Delete everything</button>`,
+    onMount(dialog) {
+      const input = dialog.querySelector("#eraseConfirm");
+      const go = dialog.querySelector("#eraseGo");
+      input.addEventListener("input", () => {
+        go.disabled = input.value.trim() !== "DELETE";
+      });
+      go.addEventListener("click", async () => {
+        const msg = dialog.querySelector("#eraseMsg");
+        go.disabled = true;
+        input.disabled = true;
+        go.textContent = "Deleting…";
+        try {
+          await eraseMyData();
+        } catch (e) {
+          msg.textContent = `${e.message} Some of it may already be gone. Try again to finish.`;
+          msg.className = "auth-msg error";
+          go.textContent = "Delete everything";
+          go.disabled = false;
+          input.disabled = false;
+          return;
+        }
+        // Drop this device's copies too, then reload into onboarding as a new student.
+        clearOfflineWork();
+        try { localStorage.removeItem(STORAGE.prefs); } catch { /* storage may be blocked */ }
+        location.hash = "";
+        location.reload();
       });
     },
   });

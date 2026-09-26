@@ -28,91 +28,92 @@ classification: no vocabulary is a loud warning, not a silent null
 syllabus: two-column ICT content tables
 reembed: gives up on a quota that is out for the day
 embedding: --no-embed skips the network entirely
+start fresh: every personal table is wiped
 
-239 passed, 0 failed
+241 passed, 0 failed
 TAP version 13
 # Subtest: cli: exhausted keys are each tried once with no quota sleep
 ok 1 - cli: exhausted keys are each tried once with no quota sleep
   ---
-  duration_ms: 51.0619
+  duration_ms: 39.711136
   type: 'test'
   ...
 # Subtest: cli: another configured key can serve the same model
 ok 2 - cli: another configured key can serve the same model
   ---
-  duration_ms: 4.7274
+  duration_ms: 4.097128
   type: 'test'
   ...
 # Subtest: cli: invalid or incomplete embedding batches fail instead of corrupting retrieval
 ok 3 - cli: invalid or incomplete embedding batches fail instead of corrupting retrieval
   ---
-  duration_ms: 3.6321
+  duration_ms: 4.363283
   type: 'test'
   ...
 # Subtest: edge: exhausted keys are each tried once with no quota sleep
 ok 4 - edge: exhausted keys are each tried once with no quota sleep
   ---
-  duration_ms: 52.7633
+  duration_ms: 17.580661
   type: 'test'
   ...
 # Subtest: edge: another configured key can serve the same model
 ok 5 - edge: another configured key can serve the same model
   ---
-  duration_ms: 11.9417
+  duration_ms: 11.731283
   type: 'test'
   ...
 # Subtest: edge: invalid or incomplete embedding batches fail instead of corrupting retrieval
 ok 6 - edge: invalid or incomplete embedding batches fail instead of corrupting retrieval
   ---
-  duration_ms: 10.1196
+  duration_ms: 10.183669
   type: 'test'
   ...
 # Subtest: grade history combines marked mocks and uploaded papers in date order per subject
 ok 7 - grade history combines marked mocks and uploaded papers in date order per subject
   ---
-  duration_ms: 14.5754
+  duration_ms: 9.635179
   type: 'test'
   ...
 # Subtest: grade history respects the chosen subject and links each result to its own view
 ok 8 - grade history respects the chosen subject and links each result to its own view
   ---
-  duration_ms: 0.5674
+  duration_ms: 0.341745
   type: 'test'
   ...
 # Subtest: unknown grades and invalid dates are never charted as a grade zero
 ok 9 - unknown grades and invalid dates are never charted as a grade zero
   ---
-  duration_ms: 0.4718
+  duration_ms: 0.357533
   type: 'test'
   ...
 # Subtest: previously opened mock is available offline without a database request
 ok 10 - previously opened mock is available offline without a database request
   ---
-  duration_ms: 2.6073
+  duration_ms: 3.747994
   type: 'test'
   ...
 # Subtest: profile and catalogue restore enough state to reopen a mock offline
 ok 11 - profile and catalogue restore enough state to reopen a mock offline
   ---
-  duration_ms: 0.7924
+  duration_ms: 1.042208
   type: 'test'
   ...
 # Subtest: offline paper snapshots cannot be read by a different account
 ok 12 - offline paper snapshots cannot be read by a different account
   ---
-  duration_ms: 1.1801
+  duration_ms: 1.212969
   type: 'test'
   ...
 # Subtest: a deleted mock cannot reappear from offline storage
 ok 13 - a deleted mock cannot reappear from offline storage
   ---
-  duration_ms: 0.6958
+  duration_ms: 0.963342
   type: 'test'
   ...
 # Subtest: legacy Further Pure Maths selections normalize to one canonical subject
 ok 14 - legacy Further Pure Maths selections normalize to one canonical subject
   ---
-  duration_ms: 0.3724
+  duration_ms: 0.514409
   type: 'test'
   ...
 # Embedding unavailable; using full-text retrieval: gemini-embedding-001 is out of quota for every configured key.
@@ -124,103 +125,103 @@ ok 14 - legacy Further Pure Maths selections normalize to one canonical subject
 # Subtest: learning exam years do not restrict the publication year of evidence
 ok 15 - learning exam years do not restrict the publication year of evidence
   ---
-  duration_ms: 4.3721
+  duration_ms: 3.123502
   type: 'test'
   ...
 # Subtest: follow-ups retrieve the student's topic, never the model's invented evidence
 ok 16 - follow-ups retrieve the student's topic, never the model's invented evidence
   ---
-  duration_ms: 1.9871
+  duration_ms: 0.690773
   type: 'test'
   ...
 # Subtest: keyword retrieval removes conversational filler but retains scientific terms
 ok 17 - keyword retrieval removes conversational filler but retains scientific terms
   ---
-  duration_ms: 1.9713
+  duration_ms: 0.341887
   type: 'test'
   ...
 # Subtest: syllabus sections never expand into the entire specification
 ok 18 - syllabus sections never expand into the entire specification
   ---
-  duration_ms: 34.3472
+  duration_ms: 37.374792
   type: 'test'
   ...
 # Subtest: expanded siblings rank below every direct retrieval hit
 ok 19 - expanded siblings rank below every direct retrieval hit
   ---
-  duration_ms: 0.8142
+  duration_ms: 0.686595
   type: 'test'
   ...
 # Subtest: teaching retrieves specification evidence separately from exam examples
 ok 20 - teaching retrieves specification evidence separately from exam examples
   ---
-  duration_ms: 0.7244
+  duration_ms: 0.619041
   type: 'test'
   ...
 # Subtest: clean topic conjunction is tried before broad keyword alternatives
 ok 21 - clean topic conjunction is tried before broad keyword alternatives
   ---
-  duration_ms: 0.7255
+  duration_ms: 0.700453
   type: 'test'
   ...
 # Subtest: lexical search participates even when vector retrieval returns unrelated hits
 ok 22 - lexical search participates even when vector retrieval returns unrelated hits
   ---
-  duration_ms: 2.4706
+  duration_ms: 1.65316
   type: 'test'
   ...
 # Subtest: numeric and programming-language Edexcel references retain their full identity
 ok 23 - numeric and programming-language Edexcel references retain their full identity
   ---
-  duration_ms: 0.5924
+  duration_ms: 0.455816
   type: 'test'
   ...
 # Subtest: exact paper and question lookup works without embedding quota
 ok 24 - exact paper and question lookup works without embedding quota
   ---
-  duration_ms: 1.0008
+  duration_ms: 0.869999
   type: 'test'
   ...
 # Subtest: ambiguous paper refuses before spending embedding quota
 ok 25 - ambiguous paper refuses before spending embedding quota
   ---
-  duration_ms: 0.4452
+  duration_ms: 0.444031
   type: 'test'
   ...
 # Subtest: missing exact question never substitutes a semantic neighbour
 ok 26 - missing exact question never substitutes a semantic neighbour
   ---
-  duration_ms: 0.3878
+  duration_ms: 0.369821
   type: 'test'
   ...
 # Subtest: whole question 1 includes its parts but never question 10
 ok 27 - whole question 1 includes its parts but never question 10
   ---
-  duration_ms: 0.3576
+  duration_ms: 0.39033
   type: 'test'
   ...
 # Subtest: embedding failure retains full-text retrieval and parsed subject filters
 ok 28 - embedding failure retains full-text retrieval and parsed subject filters
   ---
-  duration_ms: 1.6833
+  duration_ms: 0.722637
   type: 'test'
   ...
 # Subtest: database failures are reported instead of looking like a missing question
 ok 29 - database failures are reported instead of looking like a missing question
   ---
-  duration_ms: 2.2209
+  duration_ms: 0.513547
   type: 'test'
   ...
 # Subtest: conversational questions retry keyword search with alternatives when the strict query is empty
 ok 30 - conversational questions retry keyword search with alternatives when the strict query is empty
   ---
-  duration_ms: 0.7237
+  duration_ms: 1.446872
   type: 'test'
   ...
 # Subtest: Vercel build emits only the runnable browser app, without secrets or corpus files
 ok 31 - Vercel build emits only the runnable browser app, without secrets or corpus files
   ---
-  duration_ms: 326.0461
+  duration_ms: 87.01128
   type: 'test'
   ...
 1..31
@@ -231,4 +232,4 @@ ok 31 - Vercel build emits only the runnable browser app, without secrets or cor
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 513.3166
+# duration_ms 298.642467

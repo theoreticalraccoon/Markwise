@@ -38,6 +38,13 @@ What's known to be unfinished or imperfect, as of 25 September 2026. Numbers com
   Site URL and redirect list use that address, so password-reset links land on it, and link the
   GitHub repository so Vercel deploys automatically.
 
+## Recently verified
+
+- **Start fresh.** Settings requires `DELETE` before resetting study data. The
+  `reset_my_data` function deletes the student's records in one transaction while
+  retaining account credentials, administrator permission and today's AI allowance.
+  A two-user live database test and a public browser flow passed on 26 September 2026.
+
 ## Architecture
 
 The September 25 architecture review proposed six deepenings. The strongest: one module that owns what a paper reference means (tier, series letter, label),

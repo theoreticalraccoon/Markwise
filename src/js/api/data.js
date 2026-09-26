@@ -129,31 +129,14 @@ export function syncPrefs() {
   }, 600);
 }
 
-/**
- * Everything a student has put into Markwise, child rows first. ai_usage is
- * left alone: students can't write it (RLS), and wiping it would reset the
- * daily allowance.
- */
-const PERSONAL_TABLES = [
-  "chat_messages", "chat_threads", "attempts", "topic_mastery", "mocks",
-  "paper_attempts", "recall_reviews", "tasks", "tuition_sessions",
-];
-
 /** Delete the signed-in student's data and blank their profile. The account itself stays. */
 export async function eraseMyData() {
-  const userId = store.user?.id;
-  if (!userId) throw new Error("Sign in first.");
+  if (!store.user?.id) throw new Error("Sign in first.");
   if (offline()) throw new Error("Reconnect first. Deleting your data needs the internet.");
   clearTimeout(prefsTimer);
-  for (const table of PERSONAL_TABLES) {
-    const { error } = await sb.from(table).delete().eq("user_id", userId);
-    fail("Could not delete your data", error);
-  }
-  const { error } = await sb.from("profiles").update({
-    subjects: [], onboarded: false, prefs: {}, exam_session: null, display_name: null,
-    updated_at: new Date().toISOString(),
-  }).eq("id", userId);
-  fail("Could not reset your profile", error);
+  prefsTimer = null;
+  const { error } = await sb.rpc("reset_my_data");
+  fail("Could not delete your data", error);
 }
 
 /* ------------------------------------------------------------------ tasks -- */

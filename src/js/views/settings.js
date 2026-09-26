@@ -107,7 +107,7 @@ export async function render(container) {
     <section class="card plain">
       <header><h2>Start fresh</h2></header>
       <p class="field-hint">
-        Deletes everything Markwise has saved about you: tasks, tuition sessions, chats,
+        Deletes your saved study data: tasks, tuition sessions, chats,
         marked answers, mocks, marked papers, flashcard history, topic scores, your subjects
         and exam series. Your account and password stay, and so does today's AI allowance.
         This can't be undone.
@@ -484,7 +484,7 @@ function openEraseForm() {
         try {
           await eraseMyData();
         } catch (e) {
-          msg.textContent = `${e.message} Some of it may already be gone. Try again to finish.`;
+          msg.textContent = `${e.message} Check your connection and try again.`;
           msg.className = "auth-msg error";
           go.textContent = "Delete everything";
           go.disabled = false;
@@ -494,6 +494,7 @@ function openEraseForm() {
         // Drop this device's copies too, then reload into onboarding as a new student.
         clearOfflineWork();
         try { localStorage.removeItem(STORAGE.prefs); } catch { /* storage may be blocked */ }
+        try { localStorage.removeItem(STORAGE.theme); } catch { /* storage may be blocked */ }
         location.hash = "";
         location.reload();
       });

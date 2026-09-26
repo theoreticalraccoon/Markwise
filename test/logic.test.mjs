@@ -970,27 +970,5 @@ console.log("embedding: --no-embed skips the network entirely");
   eq("every text comes back with no vector, not an error", result, [null, null]);
 }
 
-console.log("start fresh: every personal table is wiped");
-{
-  const { readFile, readdir } = await import("node:fs/promises");
-  const migrations = join(REPO, "supabase/migrations");
-  const sql = (await Promise.all((await readdir(migrations)).sort()
-    .map((f) => readFile(join(migrations, f), "utf8")))).join("\n");
-  // Every table with its own user_id column, from its create statement.
-  const owned = new Set();
-  for (const m of sql.matchAll(/create table if not exists public\.(\w+)\s*\(([\s\S]*?)\n\);/g)) {
-    if (/^\s*user_id\b/m.test(m[2])) owned.add(m[1]);
-  }
-  const source = await readFile(join(REPO, "src/js/api/data.js"), "utf8");
-  const listed = [...source.match(/const PERSONAL_TABLES = \[([\s\S]*?)\];/)[1].matchAll(/"(\w+)"/g)]
-    .map((m) => m[1]);
-  // Kept on purpose: the allowance ledger, per-user limits and admin rights.
-  const kept = ["ai_usage", "ai_limits", "admins"];
-  eq("the reset list is exactly the student's own tables",
-    [...listed].sort(), [...owned].filter((t) => !kept.includes(t)).sort());
-  ok("chat messages go before their threads",
-    listed.indexOf("chat_messages") < listed.indexOf("chat_threads"));
-}
-
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -136,6 +136,7 @@ and removed dead code.
 | Edexcel rebuild and corpus load | 204 | Edexcel naming, grade boundaries, dot-leader regression, reembed give-up |
 | Assistant hotfix and corpus completion | 235 + 31 Node tests | retrieval, quota, offline mocks, grade history, static build |
 | Review | 239 + 31 | tier vocabulary shared by boundaries and papers |
+| Start fresh | 241 + 31 | the data reset covers every table a student owns |
 
 ## What we'd tell ourselves at the start
 

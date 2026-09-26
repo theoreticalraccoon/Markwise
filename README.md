@@ -128,7 +128,7 @@ docs/                                   development history, papers guide, submi
 ## Tests
 
 ```bash
-npm test          # 239 logic assertions + 31 Node tests, no network
+npm test          # 241 logic assertions + 31 Node tests, no network
 npm run check     # every browser module and edge function parses
 npm run test:security | test:browser | test:functions | test:assistant | test:upload
 ```

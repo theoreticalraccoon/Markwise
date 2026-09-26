@@ -16,6 +16,11 @@ tier, and Google's terms allow it to use free-tier inputs to improve its product
 shouldn't type personal information into questions; a school deployment should move to a
 paid key, where Google doesn't use the data that way.
 
+**Deleting it.** Settings, Start fresh, deletes everything above in one step and sends the
+student back to picking subjects. It keeps only the sign-in itself and today's AI usage count,
+so wiping your data can't be used to reset the daily allowance. A test checks that the reset
+covers every table holding student data, so a new table can't be missed.
+
 **On shared devices.** Signing out deletes the offline copy of the student's work from the
 browser (tested: "sign out: saved offline work is removed").
 

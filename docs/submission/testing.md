@@ -1,10 +1,11 @@
 # Tests and results
 
-All runs below are from 25 September 2026. Raw output is in [data/test-runs](data/test-runs).
+All runs below are from 25 September 2026, except the logic tests, rerun on 26 September
+after "Start fresh" was added. Raw output is in [data/test-runs](data/test-runs).
 
 | Suite | Command | What it checks | Result |
 |---|---|---|---|
-| Logic | `npm test` | Parsing, pairing, retrieval queries, grade boundaries, dates, escaping. No network | **239 assertions and 31 Node tests pass** |
+| Logic | `npm test` | Parsing, pairing, retrieval queries, grade boundaries, dates, escaping. No network | **241 assertions and 31 Node tests pass** |
 | Parse check | `npm run check` | Every browser module and edge function parses; no stray control characters | 26 of 26 modules, 13 of 13 functions, 152 of 152 files clean |
 | Security | `npm run test:security` | Row-level security against the live database with two throwaway students | **15 of 15 pass** |
 | Browser | `npm run test:browser` | Every screen of the live app in headless Chromium, as a throwaway student | **23 of 23 pass** |
